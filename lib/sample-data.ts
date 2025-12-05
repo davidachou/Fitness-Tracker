@@ -77,8 +77,8 @@ export const sampleProjects = [
     next_milestone: "MVP pilot",
     next_date: "2024-12-20",
     team: [
-      { name: "David Chou", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?sig=4" },
-      { name: "David Chou", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?sig=5" },
+      { name: "Kristin Kelly", avatar: "/team/Kristin Kelly.png" },
+      { name: "Justin Longua", avatar: "/team/Justin Longua.png" },
     ],
     drive: "https://drive.google.com/placeholder",
   },
@@ -91,7 +91,8 @@ export const sampleProjects = [
     next_milestone: "Exec pitch",
     next_date: "2024-12-15",
     team: [
-      { name: "David Chou", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?sig=6" },
+      { name: "Ally Reilly", avatar: "/team/Ally Reilly.png" },
+      { name: "Maddy Kelly", avatar: "/team/Maddy Kelly.png" },
     ],
     drive: "https://drive.google.com/placeholder",
   },
@@ -104,7 +105,8 @@ export const sampleProjects = [
     next_milestone: "Discovery",
     next_date: "2024-12-05",
     team: [
-      { name: "David Chou", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?sig=7" },
+      { name: "Jackie Edison", avatar: "/team/Jackie Edison.png" },
+      { name: "Christine Gilroy", avatar: "/team/Christine Gilroy.png" },
     ],
     drive: "https://drive.google.com/placeholder",
   },

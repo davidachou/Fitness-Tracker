@@ -30,9 +30,13 @@ export default function ProfilePage() {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
-      if (userError || !user) return;
+      if (userError || !user) {
+        setLoading(false);
+        return;
+      }
 
       const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+
       if (data) {
         setProfile({
           id: data.id,
@@ -42,7 +46,28 @@ export default function ProfilePage() {
           expertise: data.expertise || [],
           avatar_url: data.avatar_url,
         });
+        setLoading(false);
+        return;
       }
+
+      // If no profile exists yet, try to create it from auth metadata
+      const resp = await fetch("/api/dashboard/create-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          userMetadata: user.user_metadata,
+        }),
+      });
+
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.profile) {
+          setProfile(json.profile);
+        }
+      }
+
       setLoading(false);
     };
     loadProfile();

@@ -89,9 +89,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to send invite' }, { status: 500 })
     }
 
-    // The invite creates a user record, but we need to create the profile manually
-    // since the invite flow doesn't automatically create our custom profile
-    // We'll handle profile creation in the auth callback instead
+    // Create the profile immediately using the invited user's ID
+    const invitedUserId = inviteData.user?.id
+    if (invitedUserId) {
+      // Mirror admin logic used elsewhere
+      const isAdminAllowList = ADMIN_ALLOW_LIST.includes(email!)
+      const isAdminDomain = email.endsWith('@kkadvisory.org')
+      const isAdmin = isAdminAllowList || isAdminDomain
+
+      const { error: profileInsertError } = await adminSupabase
+        .from('profiles')
+        .upsert(
+          {
+            id: invitedUserId,
+            email,
+            full_name: fullName,
+            role: isAdmin ? 'Administrator' : role,
+            expertise: Array.isArray(expertise) ? expertise : [],
+            is_admin: isAdmin,
+            avatar_url: null,
+          },
+          { onConflict: 'id' },
+        )
+
+      if (profileInsertError) {
+        console.warn('Profile insert warning after invite (will rely on auth callback fallback):', profileInsertError)
+      }
+    } else {
+      console.warn('Invite succeeded but no user id returned; profile will be created on auth callback.')
+    }
 
     console.log('Invite sent successfully to:', email)
 

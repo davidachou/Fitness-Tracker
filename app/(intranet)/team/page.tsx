@@ -294,27 +294,29 @@ export default function TeamDirectoryPage() {
               exit={{ opacity: 0, y: 20 }}
               transition={{ delay: idx * 0.03 }}
             >
-              <Card className="h-full overflow-hidden border-border bg-card shadow-xl backdrop-blur transition hover:-translate-y-1 hover:shadow-primary/20 dark:border-white/10 dark:bg-white/5">
+              <Card className="h-full overflow-visible border-border bg-card shadow-xl backdrop-blur transition hover:-translate-y-1 hover:shadow-primary/20 dark:border-white/10 dark:bg-white/5">
                 <CardContent className="space-y-4 pt-6">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-border shadow-lg dark:border-red-500/40">
-                      <AvatarImage src={member.photo} alt={member.name} />
-                      <AvatarFallback>
-                        {member.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="overflow-hidden rounded-2xl shadow-lg">
+                      <Avatar className="h-[250px] w-[250px] rounded-none">
+                        <AvatarImage src={member.photo} alt={member.name} className="object-cover" />
+                        <AvatarFallback className="text-4xl font-bold">
+                          {member.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="text-center space-y-1">
                       <CardTitle className="text-xl">{member.name}</CardTitle>
                       <CardDescription className="text-sm text-muted-foreground">
                         {member.role}
                       </CardDescription>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{member.bio}</p>
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-sm text-muted-foreground text-center sm:text-left">{member.bio}</p>
+                  <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                     {member.expertise.map((tag) => (
                       <Button
                         key={tag}
@@ -327,7 +329,7 @@ export default function TeamDirectoryPage() {
                       </Button>
                     ))}
                   </div>
-                  <div className="flex flex-wrap gap-2 text-sm">
+                  <div className="flex flex-wrap justify-center sm:justify-start gap-2 text-sm">
                     <ActionLink href={member.slack} label="Slack" icon={<MessageCircle className="h-4 w-4" />} />
                     <ActionLink href={member.calendly} label="Calendly" icon={<CalendarClock className="h-4 w-4" />} />
                     <ActionLink href={`mailto:${member.email}`} label="Email" icon={<Mail className="h-4 w-4" />} />

@@ -1,0 +1,162 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { sampleKnowledgeAssets } from "@/lib/sample-data";
+import { BookMarked, ExternalLink, Search, Sparkles } from "lucide-react";
+import Link from "next/link";
+
+type Asset = (typeof sampleKnowledgeAssets)[number];
+
+export default function KnowledgeHubPage() {
+  const [assets, setAssets] = useState<Asset[]>(sampleKnowledgeAssets);
+  const [query, setQuery] = useState("");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const fetchAssets = async () => {
+      const { data } = await supabase
+        .from("knowledge_assets")
+        .select("*")
+        .order("last_updated", { ascending: false });
+      if (data && data.length > 0) {
+        setAssets(data as Asset[]);
+      }
+    };
+    fetchAssets();
+  }, []);
+
+  const tags = useMemo(() => {
+    const unique = new Set<string>();
+    assets.forEach((asset) => asset.tags.forEach((t) => unique.add(t)));
+    return Array.from(unique);
+  }, [assets]);
+
+  const filtered = useMemo(() => {
+    let res = assets;
+    if (query) {
+      const q = query.toLowerCase();
+      res = res.filter(
+        (a) =>
+          a.title.toLowerCase().includes(q) ||
+          a.description.toLowerCase().includes(q) ||
+          a.owner.toLowerCase().includes(q) ||
+          a.tags.some((t) => t.toLowerCase().includes(q)),
+      );
+    }
+    if (activeTag) {
+      res = res.filter((a) => a.tags.includes(activeTag));
+    }
+    return res;
+  }, [assets, query, activeTag]);
+
+  return (
+    <div className="space-y-6">
+      <header className="flex flex-col gap-2">
+        <p className="text-xs uppercase tracking-[0.3em] text-primary">The Brain</p>
+        <h2 className="text-3xl font-black">Central Knowledge Hub</h2>
+        <p className="text-muted-foreground">
+          Search across high-value assets. Tags glow to guide curation. Powered by Supabase full-text.
+        </p>
+      </header>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/90 p-4 backdrop-blur dark:border-white/10 dark:bg-white/5">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pitch decks, templates, models, playbooks..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-12 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
+          />
+        </div>
+        <ScrollArea>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={activeTag ? "outline" : "default"}
+              onClick={() => setActiveTag(null)}
+              className="rounded-full"
+            >
+              All tags
+            </Button>
+            {tags.map((tag) => (
+              <Button
+                key={tag}
+                size="sm"
+                variant={tag === activeTag ? "default" : "outline"}
+                onClick={() => setActiveTag(tag === activeTag ? null : tag)}
+                className="rounded-full"
+              >
+                {tag}
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <AnimatePresence>
+          {filtered.map((asset, idx) => (
+            <motion.div
+              key={asset.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
+              <Card className="h-full overflow-hidden border-border bg-card shadow-lg backdrop-blur hover:-translate-y-1 hover:shadow-primary/20 dark:border-white/10 dark:bg-white/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <BookMarked className="h-5 w-5 text-primary" />
+                    {asset.title}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-2">{asset.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {asset.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="bg-accent/20 text-foreground dark:bg-white/10 dark:text-white">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Owner: {asset.owner}</span>
+                    <span>Updated {new Date(asset.last_updated).toLocaleDateString()}</span>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="w-full border-primary/40 text-primary">
+                    <Link href={asset.link} target="_blank" rel="noreferrer">
+                      Open asset <ExternalLink className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {filtered.length === 0 && (
+        <Card className="border-dashed border-white/20 bg-white/5 text-center">
+          <CardContent className="py-10 text-muted-foreground">
+            Nothing yet—seed Supabase with your top assets.
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+

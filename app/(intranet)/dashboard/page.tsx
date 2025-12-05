@@ -26,6 +26,7 @@ type QuickLink = (typeof sampleQuickLinks)[number];
 
 export default function DashboardPage() {
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(sampleQuickLinks);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState({
     team: sampleTeamMembers.length,
     projects: sampleProjects.length,
@@ -65,8 +66,20 @@ export default function DashboardPage() {
       }));
     };
 
+    const loadAdminFlag = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single();
+      if (profile?.is_admin) {
+        setIsAdmin(true);
+      }
+    };
+
     loadQuickLinks();
     loadStats();
+    loadAdminFlag();
   }, []);
 
   return (
@@ -106,6 +119,16 @@ export default function DashboardPage() {
             >
               <Link href="/knowledge">Explore knowledge hub</Link>
             </Button>
+            {isAdmin && (
+              <Button
+                variant="secondary"
+                size="lg"
+                className="border-border bg-accent/40 text-foreground hover:bg-accent/50 dark:bg-white/10 dark:text-white"
+                asChild
+              >
+                <Link href="/admin/invite">Invite teammates</Link>
+              </Button>
+            )}
           </div>
         </motion.div>
         <GradientOrbs />

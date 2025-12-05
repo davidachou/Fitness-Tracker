@@ -426,10 +426,7 @@ export function AppShell({ user, children }: AppShellProps) {
           step={activeTourStep}
           stepIndex={tourIndex}
           totalSteps={navTourSteps.length}
-          onClose={() => {
-            setIsTourActive(false);
-            setTourIndex(0);
-          }}
+          onClose={finishTour}
         />
       )}
     </div>

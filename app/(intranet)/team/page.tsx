@@ -360,11 +360,14 @@ function ActionLink({
   label: string;
   icon: React.ReactNode;
 }) {
+  const isExternal = href.startsWith("http");
+
   return (
     <Link
       href={href}
-      target={href.startsWith("http") ? "_blank" : undefined}
-      className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/80 transition hover:-translate-y-0.5 hover:border-primary/50 hover:text-white"
+      target={isExternal ? "_blank" : undefined}
+      rel={isExternal ? "noreferrer" : undefined}
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-foreground transition hover:-translate-y-0.5 hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-white/10 dark:bg-white/5 dark:text-white/90 dark:hover:text-white"
       onClick={() => toast.success(`${label} launched`)}
     >
       {icon}

@@ -58,11 +58,11 @@ export default function DashboardPage() {
           supabase.from("wins_posts").select("*", { count: "exact", head: true }),
         ]);
 
-      setStats({
-        team: teamCount ?? stats.team,
-        projects: projCount ?? stats.projects,
-        wins: winCount ?? stats.wins,
-      });
+      setStats((prev) => ({
+        team: teamCount ?? prev.team,
+        projects: projCount ?? prev.projects,
+        wins: winCount ?? prev.wins,
+      }));
     };
 
     loadQuickLinks();

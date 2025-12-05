@@ -17,7 +17,13 @@ import { sampleFeedback } from "@/lib/sample-data";
 import { toast } from "sonner";
 import { MessageSquare, Send } from "lucide-react";
 
-type Feedback = (typeof sampleFeedback)[number];
+type Feedback = {
+  id: string;
+  message: string;
+  client_name: string | null;
+  client_email: string | null;
+  created_at: string;
+};
 
 export default function FeedbackPage() {
   const [feedback, setFeedback] = useState<Feedback[]>(sampleFeedback);

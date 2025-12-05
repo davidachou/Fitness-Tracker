@@ -64,11 +64,11 @@ export default function ProjectsPage() {
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    const sourceStage = result.source.droppableId as Project["stage"];
-    const destStage = result.destination.droppableId as Project["stage"];
-    const updated = Array.from(grouped[sourceStage]);
+    const sourceStage = result.source.droppableId as (typeof stages)[number];
+    const destStage = result.destination.droppableId as (typeof stages)[number];
+    const updated = Array.from(grouped[sourceStage] ?? []);
     const [moved] = updated.splice(result.source.index, 1);
-    const destList = Array.from(grouped[destStage]);
+    const destList = Array.from(grouped[destStage] ?? []);
     destList.splice(result.destination.index, 0, { ...moved, stage: destStage });
 
     const nextProjects = projects.map((p) =>
@@ -117,59 +117,62 @@ export default function ProjectsPage() {
                         {grouped[stage]?.map((project, idx) => (
                           <Draggable key={project.id} draggableId={project.id} index={idx}>
                             {(dragProvided) => (
-                              <motion.div
+                              <div
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
                                 {...dragProvided.dragHandleProps}
-                                layout
-                                className="rounded-xl border border-white/10 bg-white/10 p-3 shadow-lg backdrop-blur"
-                                whileHover={{ scale: 1.01 }}
                               >
-                                <div className="flex items-start gap-2">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                  <div className="flex-1 space-y-1">
-                                    <div className="flex items-center justify-between">
-                                      <p className="font-semibold leading-tight">
-                                        {project.client}
-                                      </p>
-                                      <Badge variant="outline" className="border-emerald-300/40 text-emerald-200">
-                                        {project.partner}
-                                      </Badge>
+                                <motion.div
+                                  layout
+                                  className="rounded-xl border border-white/10 bg-white/10 p-3 shadow-lg backdrop-blur"
+                                  whileHover={{ scale: 1.01 }}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                    <div className="flex-1 space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <p className="font-semibold leading-tight">
+                                          {project.client}
+                                        </p>
+                                        <Badge variant="outline" className="border-emerald-300/40 text-emerald-200">
+                                          {project.partner}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">{project.name}</p>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <CalendarDays className="h-4 w-4" />
+                                        <span>
+                                          {project.next_milestone} —{" "}
+                                          {new Date(project.next_date).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <div className="flex -space-x-2 pt-1">
+                                        {project.team.map((member) => (
+                                          <Avatar key={member.name} className="h-8 w-8 border-2 border-white/50">
+                                            <AvatarImage src={member.avatar} />
+                                            <AvatarFallback>
+                                              {member.name
+                                                .split(" ")
+                                                .map((n) => n[0])
+                                                .join("")}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        ))}
+                                      </div>
+                                      <Button
+                                        asChild
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start gap-2 text-xs"
+                                      >
+                                        <Link href={project.drive} target="_blank" rel="noreferrer">
+                                          <ExternalLink className="h-4 w-4" /> Drive folder
+                                        </Link>
+                                      </Button>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">{project.name}</p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <CalendarDays className="h-4 w-4" />
-                                      <span>
-                                        {project.next_milestone} —{" "}
-                                        {new Date(project.next_date).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                    <div className="flex -space-x-2 pt-1">
-                                      {project.team.map((member) => (
-                                        <Avatar key={member.name} className="h-8 w-8 border-2 border-white/50">
-                                          <AvatarImage src={member.avatar} />
-                                          <AvatarFallback>
-                                            {member.name
-                                              .split(" ")
-                                              .map((n) => n[0])
-                                              .join("")}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                      ))}
-                                    </div>
-                                    <Button
-                                      asChild
-                                      variant="ghost"
-                                      size="sm"
-                                      className="w-full justify-start gap-2 text-xs"
-                                    >
-                                      <Link href={project.drive} target="_blank" rel="noreferrer">
-                                        <ExternalLink className="h-4 w-4" /> Drive folder
-                                      </Link>
-                                    </Button>
                                   </div>
-                                </div>
-                              </motion.div>
+                                </motion.div>
+                              </div>
                             )}
                           </Draggable>
                         ))}

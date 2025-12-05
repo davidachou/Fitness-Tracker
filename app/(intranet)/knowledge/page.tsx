@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { sampleKnowledgeAssets } from "@/lib/sample-data";
-import { BookMarked, ExternalLink, Search, Sparkles } from "lucide-react";
+import { BookMarked, ExternalLink, Search } from "lucide-react";
 import Link from "next/link";
 
 type Asset = (typeof sampleKnowledgeAssets)[number];

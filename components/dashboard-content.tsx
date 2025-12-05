@@ -45,6 +45,11 @@ export function DashboardContent() {
         user = userFromGetUser
       }
 
+      if (!user) {
+        router.push('/auth/login')
+        return
+      }
+
       // Check if user has a profile
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')

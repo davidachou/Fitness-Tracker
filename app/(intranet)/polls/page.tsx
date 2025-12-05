@@ -79,7 +79,11 @@ export default function PollsPage() {
       ),
     );
     await supabase.from("poll_votes").insert({ poll_id: pollId, option_id: optionId });
-    await supabase.rpc("increment_vote", { option_id_input: optionId }).catch(() => {});
+    try {
+      await supabase.rpc("increment_vote", { option_id_input: optionId });
+    } catch {
+      // ignore RPC errors for now
+    }
     toast.success("Vote saved");
   };
 

@@ -25,7 +25,7 @@ const manualSchema = z
     description: z.string().optional(),
     startTime: z.string().min(1, "Start time required"),
     endTime: z.string().min(1, "End time required"),
-    billable: z.boolean().default(true),
+    billable: z.boolean().optional(),
   })
   .refine(
     (data) => {
@@ -86,22 +86,6 @@ export function TimeEntryForm({
     });
     return Array.from(set);
   }, [projects]);
-  // Initialize client filters to first available client when projects change
-  useEffect(() => {
-    if (projects.length > 0) {
-      const firstClient = projects.find((p) => p.client)?.client ?? "";
-      setStartClient((prev) => (prev ? prev : firstClient));
-      setManualClient((prev) => (prev ? prev : firstClient));
-    } else {
-      setStartClient("");
-      setManualClient("");
-      startForm.setValue("projectId", undefined);
-      manualForm.setValue("projectId", undefined);
-      startForm.setValue("taskId", undefined);
-      manualForm.setValue("taskId", undefined);
-    }
-  }, [projects]);
-
   const startForm = useForm<StartFormValues>({
     resolver: zodResolver(startSchema),
     defaultValues: {
@@ -123,6 +107,22 @@ export function TimeEntryForm({
     },
   });
 
+  // Initialize client filters to first available client when projects change
+  useEffect(() => {
+    if (projects.length > 0) {
+      const firstClient = projects.find((p) => p.client)?.client ?? "";
+      setStartClient((prev) => (prev ? prev : firstClient));
+      setManualClient((prev) => (prev ? prev : firstClient));
+    } else {
+      setStartClient("");
+      setManualClient("");
+      startForm.setValue("projectId", undefined);
+      manualForm.setValue("projectId", undefined);
+      startForm.setValue("taskId", undefined);
+      manualForm.setValue("taskId", undefined);
+    }
+  }, [projects, startForm, manualForm]);
+
   // Clear selections when client is cleared
   useEffect(() => {
     if (!startClient) {
@@ -138,11 +138,15 @@ export function TimeEntryForm({
     }
   }, [manualClient, manualForm]);
 
-  const filterProjects = (clientFilter: string) =>
-    projects.filter((p) => !clientFilter || p.client === clientFilter);
+  const filterProjects = useMemo(
+    () => (clientFilter: string) => projects.filter((p) => !clientFilter || p.client === clientFilter),
+    [projects],
+  );
 
-  const filterTasks = (projectId?: string | null) =>
-    projectId ? tasks.filter((t) => t.project_id === projectId) : [];
+  const filterTasks = useMemo(
+    () => (projectId?: string | null) => (projectId ? tasks.filter((t) => t.project_id === projectId) : []),
+    [tasks],
+  );
 
   // When client changes, clear project/task if the selected project is no longer valid
   useEffect(() => {
@@ -153,7 +157,7 @@ export function TimeEntryForm({
       startForm.setValue("projectId", undefined, { shouldValidate: true });
       startForm.setValue("taskId", undefined);
     }
-  }, [startClient, startForm, projects]);
+  }, [startClient, filterProjects, startForm]);
 
   useEffect(() => {
     const filtered = filterProjects(manualClient);
@@ -163,7 +167,7 @@ export function TimeEntryForm({
       manualForm.setValue("projectId", undefined, { shouldValidate: true });
       manualForm.setValue("taskId", undefined);
     }
-  }, [manualClient, manualForm, projects]);
+  }, [filterProjects, manualClient, manualForm]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -288,12 +292,13 @@ export function TimeEntryForm({
               variant="secondary"
               size="sm"
               disabled={!newTaskName.trim() || isCreatingTask}
-              onClick={() =>
-                onCreateTask({
+              onClick={async () => {
+                await onCreateTask({
                   name: newTaskName.trim(),
                   projectId: startForm.watch("projectId") || undefined,
-                }).then(() => setNewTaskName(""))
-              }
+                });
+                setNewTaskName("");
+              }}
             >
               {isCreatingTask ? "Saving..." : "Add"}
             </Button>
@@ -428,12 +433,13 @@ export function TimeEntryForm({
               variant="secondary"
               size="sm"
               disabled={!newTaskName.trim() || isCreatingTask}
-              onClick={() =>
-                onCreateTask({
+              onClick={async () => {
+                await onCreateTask({
                   name: newTaskName.trim(),
                   projectId: manualForm.watch("projectId") || undefined,
-                }).then(() => setNewTaskName(""))
-              }
+                });
+                setNewTaskName("");
+              }}
             >
               {isCreatingTask ? "Saving..." : "Add"}
             </Button>

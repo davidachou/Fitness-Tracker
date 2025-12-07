@@ -11,14 +11,19 @@ type RealtimeTimerProviderProps = {
   children: React.ReactNode;
 };
 
-type ActiveTimerRow = {
-  id: string;
-  user_id: string;
-  project_id: string | null;
-  description: string | null;
-  start_time: string;
-  time_tracker_projects?: { billable?: boolean | null; name?: string | null } | null;
-} | null;
+type ActiveTimerRow =
+  | {
+      id: string;
+      user_id: string;
+      project_id: string | null;
+      description: string | null;
+      start_time: string;
+      time_tracker_projects?:
+        | { billable?: boolean | null; name?: string | null }
+        | { billable?: boolean | null; name?: string | null }[]
+        | null;
+    }
+  | null;
 
 export function RealtimeTimerProvider({ userId, children }: RealtimeTimerProviderProps) {
   const { setRunningTimer, setSyncing } = useTimerStore();
@@ -32,14 +37,17 @@ export function RealtimeTimerProvider({ userId, children }: RealtimeTimerProvide
 
     const mapTimer = (row: ActiveTimerRow) => {
       if (!row) return null;
+      const projectRel = Array.isArray(row.time_tracker_projects)
+        ? row.time_tracker_projects[0]
+        : row.time_tracker_projects;
       return {
         id: row.id,
         user_id: row.user_id,
         project_id: row.project_id ?? null,
         description: row.description ?? null,
         start_time: row.start_time,
-        billable: row.time_tracker_projects?.billable ?? null,
-        project_name: row.time_tracker_projects?.name ?? null,
+        billable: projectRel?.billable ?? null,
+        project_name: projectRel?.name ?? null,
       };
     };
 

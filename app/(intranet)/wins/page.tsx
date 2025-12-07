@@ -17,6 +17,7 @@ import { sampleWins } from "@/lib/sample-data";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Sparkles, Upload } from "lucide-react";
+import Image from "next/image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -134,11 +135,14 @@ export default function WinsPage() {
                 </div>
                 <Card className="overflow-hidden border-white/10 bg-white/5 backdrop-blur">
                   {post.image && post.image.trim().length > 0 && (
-                    <div className="h-40 w-full overflow-hidden">
-                      <img
+                    <div className="relative h-40 w-full overflow-hidden">
+                      <Image
                         src={post.image}
                         alt={post.title}
-                        className="h-full w-full object-cover transition hover:scale-105"
+                        fill
+                        className="object-cover transition duration-200 hover:scale-105"
+                        sizes="100vw"
+                        priority={false}
                       />
                     </div>
                   )}

@@ -14,19 +14,6 @@ import { ReportsModal } from "@/components/tracker/ReportsModal";
 import { useTimerStore } from "@/components/tracker/useTimerStore";
 
 type User = { id: string } | null;
-type TimeEntryRow = {
-  id: string;
-  time_tracker_projects?:
-    | { name?: string | null; billable?: boolean | null; clients?: { name?: string | null } | null }
-    | null;
-  time_tracker_tasks?: { name?: string | null; project_id?: string | null } | null;
-  description?: string | null;
-  duration_seconds?: number | null;
-  billable?: boolean | null;
-  start_time: string;
-  end_time?: string | null;
-};
-
 export default function TrackerPage() {
   const supabase = useMemo(() => createClient(), []);
   const queryClient = useQueryClient();
@@ -54,12 +41,22 @@ export default function TrackerPage() {
         .select("id, name, billable, clients(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data.map((p) => ({
-        id: p.id,
-        name: p.name,
-        billable: p.billable,
-        client: p.clients?.name ?? null,
-      })) as ProjectOption[];
+      type ProjectRow = {
+        id: string;
+        name: string;
+        billable: boolean | null;
+        clients: { name?: string | null } | { name?: string | null }[] | null;
+      };
+      return (data as ProjectRow[]).map((p) => {
+        const clients = p.clients;
+        const clientName = Array.isArray(clients) ? clients[0]?.name ?? null : clients?.name ?? null;
+        return {
+          id: p.id,
+          name: p.name,
+          billable: p.billable,
+          client: clientName,
+        };
+      }) as ProjectOption[];
     },
   });
 
@@ -75,17 +72,57 @@ export default function TrackerPage() {
         .eq("user_id", user!.id)
         .order("start_time", { ascending: false });
       if (error) throw error;
-      return data.map((row: TimeEntryRow) => ({
-        id: row.id,
-        project_name: row.time_tracker_projects?.name,
-        client: row.time_tracker_projects?.clients?.name,
-        task_name: row.time_tracker_tasks?.name,
-        description: row.description,
-        duration_seconds: row.duration_seconds,
-        billable: row.billable,
-        start_time: row.start_time,
-        end_time: row.end_time,
-      })) as TimelineEntry[];
+      type EntryRow = {
+        id: string;
+        user_id: string | null;
+        project_id: string | null;
+        task_id: string | null;
+        description: string | null;
+        start_time: string;
+        end_time: string | null;
+        duration_seconds: number | null;
+        billable: boolean | null;
+        time_tracker_projects:
+          | {
+              name?: string | null;
+              billable?: boolean | null;
+              clients?: { name?: string | null } | { name?: string | null }[] | null;
+            }
+          | {
+              name?: string | null;
+              billable?: boolean | null;
+              clients?: { name?: string | null } | { name?: string | null }[] | null;
+            }[]
+          | null;
+        time_tracker_tasks:
+          | { name?: string | null; project_id?: string | null }
+          | { name?: string | null; project_id?: string | null }[]
+          | null;
+      };
+
+      return (data as EntryRow[]).map((row) => {
+        const projectRel = Array.isArray(row.time_tracker_projects)
+          ? row.time_tracker_projects[0]
+          : row.time_tracker_projects;
+        const clientRel = projectRel?.clients;
+        const clientName = Array.isArray(clientRel) ? clientRel[0]?.name ?? null : clientRel?.name ?? null;
+
+        const taskRel = Array.isArray(row.time_tracker_tasks)
+          ? row.time_tracker_tasks[0]
+          : row.time_tracker_tasks;
+
+        return {
+          id: row.id,
+          project_name: projectRel?.name,
+          client: clientName,
+          task_name: taskRel?.name,
+          description: row.description,
+          duration_seconds: row.duration_seconds,
+          billable: row.billable,
+          start_time: row.start_time,
+          end_time: row.end_time,
+        };
+      }) as TimelineEntry[];
     },
   });
 
@@ -272,14 +309,18 @@ export default function TrackerPage() {
             key={projects.map((p) => p.id).join("-")}
             projects={projects}
             tasks={tasks}
-            onStart={(vals) => startTimerMutation.mutateAsync(vals)}
+            onStart={async (vals) => {
+              await startTimerMutation.mutateAsync(vals);
+            }}
             isStarting={startTimerMutation.isPending}
             disableStart={Boolean(runningTimer)}
-            onManualSubmit={(vals) => manualEntryMutation.mutateAsync(vals)}
+            onManualSubmit={async (vals) => {
+              await manualEntryMutation.mutateAsync(vals);
+            }}
             isManualSubmitting={manualEntryMutation.isPending}
-            onCreateTask={(input) =>
-              createTaskMutation.mutateAsync({ name: input.name, projectId: input.projectId })
-            }
+            onCreateTask={async (input) => {
+              await createTaskMutation.mutateAsync({ name: input.name, projectId: input.projectId });
+            }}
             isCreatingTask={createTaskMutation.isPending}
           />
         </CardContent>

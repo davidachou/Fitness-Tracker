@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { addDays, endOfDay, format, startOfDay } from "date-fns";
 import Papa from "papaparse";
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { X, Download } from "lucide-react";
@@ -32,16 +32,28 @@ export function ReportsModal({ open, onClose, entries }: ReportsModalProps) {
     billableOnly: false,
   });
 
+  const dateBounds = useMemo(() => {
+    const start = parseDate(filters.startDate);
+    const end = parseDate(filters.endDate);
+    if (!start || !end) return { start: null, end: null, isValidRange: false };
+    const [minDate, maxDate] = start <= end ? [start, end] : [end, start];
+    return {
+      start: startOfDay(minDate),
+      end: endOfDay(maxDate),
+      isValidRange: true,
+    };
+  }, [filters.startDate, filters.endDate]);
+
   const filteredEntries = useMemo(() => {
-    const start = new Date(filters.startDate);
-    const end = new Date(filters.endDate);
+    if (!dateBounds.isValidRange || !dateBounds.start || !dateBounds.end) return [];
+    const { start, end } = dateBounds;
     return entries.filter((entry) => {
       const ts = new Date(entry.start_time);
       if (ts < start || ts > end) return false;
       if (filters.billableOnly && entry.billable === false) return false;
       return true;
     });
-  }, [entries, filters]);
+  }, [dateBounds, entries, filters]);
 
   const totals = useMemo(() => {
     const totalSeconds = filteredEntries.reduce((sum, e) => sum + (e.duration_seconds ?? 0), 0);
@@ -114,21 +126,28 @@ export function ReportsModal({ open, onClose, entries }: ReportsModalProps) {
               <Label htmlFor="billableOnly">Billable only</Label>
             </div>
             <div className="flex gap-2">
-              <Button className="gap-2" onClick={downloadCsv}>
+              <Button className="gap-2" onClick={downloadCsv} disabled={!dateBounds.isValidRange}>
                 <Download className="h-4 w-4" />
                 CSV
               </Button>
-              <PDFDownloadLink
-                document={<ReportPdf entries={filteredEntries} totals={totals} />}
-                fileName="time-report.pdf"
-              >
-                {({ loading }) => (
-                  <Button variant="secondary" className="gap-2" disabled={loading}>
-                    <Download className="h-4 w-4" />
-                    {loading ? "Building..." : "PDF"}
-                  </Button>
-                )}
-              </PDFDownloadLink>
+              {dateBounds.isValidRange && filteredEntries.length > 0 ? (
+                <PDFDownloadLink
+                  document={<ReportPdf entries={filteredEntries} totals={totals} />}
+                  fileName="time-report.pdf"
+                >
+                  {({ loading }) => (
+                    <Button variant="secondary" className="gap-2" disabled={loading}>
+                      <Download className="h-4 w-4" />
+                      {loading ? "Building..." : "PDF"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              ) : (
+                <Button variant="secondary" className="gap-2" disabled>
+                  <Download className="h-4 w-4" />
+                  PDF
+                </Button>
+              )}
             </div>
           </div>
 
@@ -212,9 +231,13 @@ function ReportPdf({ entries, totals }: { entries: TimelineEntry[]; totals: { to
 }
 
 function defaultDate(offsetDays: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  return format(addDays(new Date(), offsetDays), "yyyy-MM-dd");
+}
+
+function parseDate(value: string) {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 

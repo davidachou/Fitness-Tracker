@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const { email, fullName, role, expertise } = await request.json()
+    const { email, fullName, role, expertise, isAdmin: requestedAdmin } = await request.json()
 
     // Validate required fields
     if (!email || !fullName || !role) {
@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
         invite_full_name: fullName,
         invite_role: role,
         invite_expertise: Array.isArray(expertise) ? expertise : [],
+        invite_is_admin: requestedAdmin === true,
         // Also set regular fields (may be overridden by OAuth)
         full_name: fullName,
         role: role,
@@ -92,10 +93,9 @@ export async function POST(request: NextRequest) {
     // Create the profile immediately using the invited user's ID
     const invitedUserId = inviteData.user?.id
     if (invitedUserId) {
-      // Mirror admin logic used elsewhere
+      // Mirror admin logic used elsewhere: explicit allow-list or requested flag
       const isAdminAllowList = ADMIN_ALLOW_LIST.includes(email!)
-      const isAdminDomain = email.endsWith('@kkadvisory.org')
-      const isAdmin = isAdminAllowList || isAdminDomain
+      const isAdmin = isAdminAllowList || requestedAdmin === true
 
       const { error: profileInsertError } = await adminSupabase
         .from('profiles')

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format, intervalToDuration, isAfter, startOfToday, startOfWeek } from "date-fns";
-import { Clock3, DollarSign, FileSpreadsheet, Timer, Pencil } from "lucide-react";
+import { Clock3, DollarSign, FileSpreadsheet, Timer, Pencil, Trash2, ListPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -32,12 +32,14 @@ export type TimelineEntry = {
 
 type TimeTimelineProps = {
   entries: TimelineEntry[];
-  onGenerateReport: () => void;
-  onOpenBatch?: () => void;
+  onGenerateReportAction: () => void;
+  onOpenBatchAction?: () => void;
   projects: ProjectOption[];
   tasks: TaskOption[];
-  onUpdateEntry: (input: EditEntryInput) => Promise<void> | void;
+  onUpdateEntryAction: (input: EditEntryInput) => Promise<void> | void;
   isUpdating?: boolean;
+  onDeleteEntryAction?: (id: string) => Promise<void> | void;
+  isDeleting?: boolean;
 };
 
 export type EditEntryInput = {
@@ -73,12 +75,14 @@ function inputToIso(value: string) {
 
 export function TimeTimeline({
   entries,
-  onGenerateReport,
-  onOpenBatch,
+  onGenerateReportAction,
+  onOpenBatchAction,
   projects,
   tasks,
-  onUpdateEntry,
+  onUpdateEntryAction,
   isUpdating,
+  onDeleteEntryAction,
+  isDeleting,
 }: TimeTimelineProps) {
   const [tab, setTab] = useState<"today" | "week" | "all">("today");
   const [editing, setEditing] = useState<EditEntryInput | null>(null);
@@ -166,7 +170,7 @@ export function TimeTimeline({
       setError("End time must be after start time");
       return;
     }
-    await onUpdateEntry({
+    await onUpdateEntryAction({
       id: editing.id,
       projectId: editing.projectId || UNASSIGNED_PROJECT_ID,
       taskId: editing.taskId || null,
@@ -176,6 +180,17 @@ export function TimeTimeline({
       billable: editing.billable,
     });
     closeEdit();
+  };
+
+  const handleDelete = async () => {
+    if (!editing || !onDeleteEntryAction) return;
+    setError(null);
+    try {
+      await onDeleteEntryAction(editing.id);
+      closeEdit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete entry");
+    }
   };
 
   return (
@@ -193,13 +208,13 @@ export function TimeTimeline({
               <TabsTrigger value="all">All Time</TabsTrigger>
             </TabsList>
           </Tabs>
-          {onOpenBatch && (
-            <Button variant="outline" size="sm" className="gap-2" onClick={onOpenBatch}>
-              <Timer className="h-4 w-4" />
+          {onOpenBatchAction && (
+            <Button variant="secondary" size="sm" className="gap-2" onClick={onOpenBatchAction}>
+              <ListPlus className="h-4 w-4" />
               Batch add
             </Button>
           )}
-          <Button variant="secondary" size="sm" className="gap-2" onClick={onGenerateReport}>
+          <Button variant="secondary" size="sm" className="gap-2" onClick={onGenerateReportAction}>
             <FileSpreadsheet className="h-4 w-4" />
             Generate report
           </Button>
@@ -400,10 +415,18 @@ export function TimeTimeline({
               {error && <p className="text-sm text-red-500">{error}</p>}
 
               <DialogFooter>
-                <Button variant="ghost" onClick={closeEdit} disabled={isUpdating}>
+                <Button variant="outline" onClick={handleDelete} disabled={isUpdating || isDeleting}>
+                  {isDeleting ? "Deleting..." : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+                <Button variant="ghost" onClick={closeEdit} disabled={isUpdating || isDeleting}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={isUpdating}>
+                <Button onClick={handleSave} disabled={isUpdating || isDeleting}>
                   {isUpdating ? "Saving..." : "Save changes"}
                 </Button>
               </DialogFooter>

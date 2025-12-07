@@ -489,13 +489,13 @@ export default function TrackerPage() {
         entries={entries}
         projects={projects}
         tasks={tasks}
-        onOpenBatch={() => setBatchOpen(true)}
-        onGenerateReport={() => setReportsOpen(true)}
-        onUpdateEntry={async (input) => {
+        onOpenBatchAction={() => setBatchOpen(true)}
+        onGenerateReportAction={() => setReportsOpen(true)}
+        onUpdateEntryAction={async (input) => {
           await updateEntryMutation.mutateAsync(input);
         }}
         isUpdating={updateEntryMutation.isPending}
-        onDeleteEntry={async (id) => {
+        onDeleteEntryAction={async (id) => {
           await deleteEntryMutation.mutateAsync(id);
         }}
         isDeleting={deleteEntryMutation.isPending}

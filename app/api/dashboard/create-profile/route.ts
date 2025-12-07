@@ -48,10 +48,11 @@ export async function POST(request: NextRequest) {
                 userMetadata?.role ||
                 'Team Member'
 
-    // Check if user should be admin (hardcoded allow-list)
+    // Check if user should be admin (explicit allow-list or invite flag)
     const ADMIN_ALLOW_LIST = ['david@kkadvisory.org']
-    const isAdmin = ADMIN_ALLOW_LIST.includes(email!) ||
-                   email?.endsWith('@kkadvisory.org') // All company emails get basic access
+    const isAdmin =
+      ADMIN_ALLOW_LIST.includes(email!) ||
+      user.user_metadata?.invite_is_admin === true
 
     // Extract expertise from invite data if available
     const expertise = (hasInviteData && user.user_metadata?.invite_expertise) ?

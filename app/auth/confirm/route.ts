@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
               full_name: user.user_metadata.full_name || user.user_metadata.name || 'Unknown',
               role: user.user_metadata.role || 'Team Member',
               expertise: user.user_metadata.expertise || [],
-              is_admin: false
+              is_admin: user.user_metadata.invite_is_admin === true
             });
 
           if (profileError) {

@@ -8,12 +8,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface InviteFormData {
   email: string
   fullName: string
   role: string
   expertise: string
+  isAdmin: boolean
 }
 
 export function InviteForm() {
@@ -24,7 +26,8 @@ export function InviteForm() {
     email: '',
     fullName: '',
     role: '',
-    expertise: ''
+    expertise: '',
+    isAdmin: false
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,7 +56,8 @@ export function InviteForm() {
           email: formData.email,
           fullName: formData.fullName,
           role: formData.role,
-          expertise: formData.expertise.split(',').map(tag => tag.trim()).filter(Boolean)
+          expertise: formData.expertise.split(',').map(tag => tag.trim()).filter(Boolean),
+          isAdmin: formData.isAdmin
         }),
       })
 
@@ -69,7 +73,8 @@ export function InviteForm() {
         email: '',
         fullName: '',
         role: '',
-        expertise: ''
+        expertise: '',
+        isAdmin: false
       })
 
     } catch (err) {
@@ -142,6 +147,25 @@ export function InviteForm() {
               onChange={handleInputChange('expertise')}
               rows={3}
             />
+          </div>
+
+          <div className="flex items-center space-x-2 rounded-lg border border-border/60 bg-muted/40 p-3">
+            <Checkbox
+              id="isAdmin"
+              checked={formData.isAdmin}
+              onCheckedChange={(val) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  isAdmin: Boolean(val),
+                }))
+              }
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="isAdmin">Make admin</Label>
+              <p className="text-xs text-muted-foreground">
+                Leave unchecked to invite as a regular member.
+              </p>
+            </div>
           </div>
 
           {error && (

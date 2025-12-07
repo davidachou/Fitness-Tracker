@@ -221,7 +221,7 @@ export default function DashboardPage() {
             ))}
             <Button
               variant="outline"
-              className="w-full border-white/20 text-white hover:bg-white/10"
+              className="w-full border-primary/40 text-primary"
               asChild
             >
               <Link href="/knowledge">

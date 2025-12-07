@@ -328,6 +328,19 @@ export default function TrackerPage() {
     onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not update entry"),
   });
 
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!user?.id) throw new Error("Missing user");
+      const { error } = await supabase.from("time_entries").delete().eq("id", id).eq("user_id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entry deleted");
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-entries", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not delete entry"),
+  });
+
   const batchEntryMutation = useMutation({
     mutationFn: async (rows: BatchEntryInput[]) => {
       if (!user?.id) throw new Error("Missing user");
@@ -408,6 +421,10 @@ export default function TrackerPage() {
           await updateEntryMutation.mutateAsync(input);
         }}
         isUpdating={updateEntryMutation.isPending}
+        onDeleteEntry={async (id) => {
+          await deleteEntryMutation.mutateAsync(id);
+        }}
+        isDeleting={deleteEntryMutation.isPending}
       />
 
       <ReportsModal open={reportsOpen} onClose={() => setReportsOpen(false)} entries={entries} />

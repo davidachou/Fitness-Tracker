@@ -1,0 +1,8 @@
+[db]
+# Supabase project connection is managed by `supabase link`.
+
+[db.seed]
+enabled = true
+sql_paths = ["seeds/seed_time_tracker_projects.sql"]
+
+

@@ -21,6 +21,7 @@ import {
   LogOut,
   Sparkles,
   UserCircle2,
+  Timer,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { toast } from "sonner";
+import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
+import { TimerBadge } from "@/components/tracker/TimerBadge";
 
 type AppShellProps = {
   user: {
@@ -56,6 +59,7 @@ const navItems = [
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/booking", label: "Bookings", icon: CalendarDays },
   { href: "/polls", label: "Polls", icon: BarChart4 },
+  { href: "/tracker", label: "Time Tracker", icon: Timer },
 ];
 
 type TourStep = {
@@ -318,82 +322,84 @@ export function AppShell({ user, children }: AppShellProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsla(var(--primary),0.16),transparent_32%),radial-gradient(circle_at_80%_0%,hsla(var(--accent),0.18),transparent_28%),radial-gradient(circle_at_60%_80%,hsla(var(--primary),0.14),transparent_35%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(239,68,68,0.14),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(249,115,22,0.14),transparent_28%),radial-gradient(circle_at_60%_80%,rgba(59,7,11,0.35),transparent_35%)]" />
-      <div className="relative z-10 mx-auto flex max-w-7xl gap-6 px-4 py-6 lg:px-8">
-        <aside className="hidden w-64 shrink-0 lg:block">
-          <div className="sticky top-6 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-2xl backdrop-blur-xl">
-            <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/10 to-accent/10 p-3">
-              <Avatar className="border border-white/20 shadow-md">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-semibold leading-tight text-foreground">
-                  {profile?.full_name || user.email}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.role || "KK Advisory"}
-                </p>
+    <RealtimeTimerProvider userId={user.id}>
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsla(var(--primary),0.16),transparent_32%),radial-gradient(circle_at_80%_0%,hsla(var(--accent),0.18),transparent_28%),radial-gradient(circle_at_60%_80%,hsla(var(--primary),0.14),transparent_35%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(239,68,68,0.14),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(249,115,22,0.14),transparent_28%),radial-gradient(circle_at_60%_80%,rgba(59,7,11,0.35),transparent_35%)]" />
+        <div className="relative z-10 mx-auto flex max-w-7xl gap-6 px-4 py-6 lg:px-8">
+          <aside className="hidden w-64 shrink-0 lg:block">
+            <div className="sticky top-6 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/10 to-accent/10 p-3">
+                <Avatar className="border border-white/20 shadow-md">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-semibold leading-tight text-foreground">
+                    {profile?.full_name || user.email}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {profile?.role || "KK Advisory"}
+                  </p>
+                </div>
               </div>
-            </div>
-            <Separator className="my-4 border-white/10" />
-            {renderNav()}
-            <Button
-              variant="ghost"
-              className="mt-4 w-full justify-start gap-2 text-foreground hover:bg-primary/10 hover:text-primary dark:text-red-300 dark:hover:bg-red-500/10 dark:hover:text-red-100"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" /> Logout
-            </Button>
-          </div>
-        </aside>
-
-        <div className="flex-1 space-y-6">
-          <header className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+              <Separator className="my-4 border-white/10" />
+              {renderNav()}
               <Button
                 variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setIsMobileNavOpen((prev) => !prev)}
+                className="mt-4 w-full justify-start gap-2 text-foreground hover:bg-primary/10 hover:text-primary dark:text-red-300 dark:hover:bg-red-500/10 dark:hover:text-red-100"
+                onClick={handleLogout}
               >
-                {isMobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-primary/70">
-                  KK Advisory Intranet
-                </p>
-                <h1 className="text-2xl font-bold text-foreground dark:text-white drop-shadow-sm">
-                  Team Workspace
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-sm text-muted-foreground">
-                Signed in as{" "}
-                <span className="font-semibold text-foreground">
-                  {profile?.full_name || user.email}
-                </span>
-              </div>
-              <div
-                data-tour-nav="theme"
-                onClick={() => advanceTour("theme")}
-                className="flex items-center"
-              >
-                <ThemeSwitcher />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 border-primary/30 bg-gradient-to-r from-sky-200/80 via-teal-200/70 to-lime-200/80 text-foreground shadow-md shadow-primary/20 transition hover:shadow-lg hover:shadow-primary/30 dark:from-red-500/40 dark:via-orange-400/40 dark:to-amber-400/40 dark:text-white dark:hover:text-white dark:hover:shadow-red-500/30"
-                onClick={() => window.dispatchEvent(new CustomEvent("app-tour:start"))}
-              >
-                <Sparkles className="h-4 w-4" />
-                Start tour
+                <LogOut className="h-4 w-4" /> Logout
               </Button>
             </div>
-          </header>
+          </aside>
+
+          <div className="flex-1 space-y-6">
+            <header className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  onClick={() => setIsMobileNavOpen((prev) => !prev)}
+                >
+                  {isMobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </Button>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-primary/70">
+                    KK Advisory Intranet
+                  </p>
+                  <h1 className="text-2xl font-bold text-foreground dark:text-white drop-shadow-sm">
+                    Team Workspace
+                  </h1>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <TimerBadge />
+                <div className="hidden sm:block text-sm text-muted-foreground">
+                  Signed in as{" "}
+                  <span className="font-semibold text-foreground">
+                    {profile?.full_name || user.email}
+                  </span>
+                </div>
+                <div
+                  data-tour-nav="theme"
+                  onClick={() => advanceTour("theme")}
+                  className="flex items-center"
+                >
+                  <ThemeSwitcher />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-primary/30 bg-gradient-to-r from-sky-200/80 via-teal-200/70 to-lime-200/80 text-foreground shadow-md shadow-primary/20 transition hover:shadow-lg hover:shadow-primary/30 dark:from-red-500/40 dark:via-orange-400/40 dark:to-amber-400/40 dark:text-white dark:hover:text-white dark:hover:shadow-red-500/30"
+                  onClick={() => window.dispatchEvent(new CustomEvent("app-tour:start"))}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Start tour
+                </Button>
+              </div>
+            </header>
 
           <AnimatePresence>
             {isMobileNavOpen && (
@@ -421,15 +427,16 @@ export function AppShell({ user, children }: AppShellProps) {
           </main>
         </div>
       </div>
-      {activeTourStep && (
-        <TourOverlay
-          step={activeTourStep}
-          stepIndex={tourIndex}
-          totalSteps={navTourSteps.length}
-          onClose={finishTour}
-        />
-      )}
-    </div>
+        {activeTourStep && (
+          <TourOverlay
+            step={activeTourStep}
+            stepIndex={tourIndex}
+            totalSteps={navTourSteps.length}
+            onClose={finishTour}
+          />
+        )}
+      </div>
+    </RealtimeTimerProvider>
   );
 }
 

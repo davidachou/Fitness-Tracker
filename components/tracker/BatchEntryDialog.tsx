@@ -6,7 +6,6 @@ import { Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,7 +72,9 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, onSubmit, isS
 
   const projectsForClient = useMemo(
     () => (client?: string | null) =>
-      client && client !== UNASSIGNED_CLIENT_LABEL ? projects.filter((p) => p.client === client) : projects,
+      client && client !== UNASSIGNED_CLIENT_LABEL
+        ? projects.filter((p) => p.client === client)
+        : projects.filter((p) => p.id === UNASSIGNED_PROJECT_ID),
     [projects],
   );
 

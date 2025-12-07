@@ -42,6 +42,7 @@ type TimeTimelineProps = {
 
 export type EditEntryInput = {
   id: string;
+  client?: string | null;
   projectId?: string | null;
   taskId?: string | null;
   description?: string | null;
@@ -124,7 +125,9 @@ export function TimeTimeline({
 
   const projectsForClient = useMemo(
     () => (client?: string | null) =>
-      client && client !== UNASSIGNED_CLIENT_LABEL ? projects.filter((p) => p.client === client) : [],
+      client && client !== UNASSIGNED_CLIENT_LABEL
+        ? projects.filter((p) => p.client === client)
+        : projects.filter((p) => p.id === UNASSIGNED_PROJECT_ID),
     [projects],
   );
 
@@ -431,5 +434,4 @@ function SummaryStat({
     </div>
   );
 }
-
 

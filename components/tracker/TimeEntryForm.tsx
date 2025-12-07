@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlayCircle, PlusCircle } from "lucide-react";
+import { PlayCircle, PlusCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -453,15 +453,51 @@ export function TimeEntryForm({
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2">
-            <Label>Start time</Label>
-            <Input type="datetime-local" {...manualForm.register("startTime")} />
+            <div className="flex items-center justify-between gap-2">
+              <Label className="whitespace-nowrap">Start time</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const el = document.querySelector<HTMLInputElement>('input[name="startTime"]');
+                  if (el && typeof el.showPicker === "function") el.showPicker();
+                  else el?.focus();
+                }}
+              >
+                <CalendarClock className="h-4 w-4" />
+              </Button>
+            </div>
+            <Input
+              type="datetime-local"
+              className="w-full"
+              {...manualForm.register("startTime")}
+            />
             {manualForm.formState.errors.startTime && (
               <p className="text-xs text-red-500">{manualForm.formState.errors.startTime.message}</p>
             )}
           </div>
           <div className="space-y-2">
-            <Label>End time</Label>
-            <Input type="datetime-local" {...manualForm.register("endTime")} />
+            <div className="flex items-center justify-between gap-2">
+              <Label className="whitespace-nowrap">End time</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const el = document.querySelector<HTMLInputElement>('input[name="endTime"]');
+                  if (el && typeof el.showPicker === "function") el.showPicker();
+                  else el?.focus();
+                }}
+              >
+                <CalendarClock className="h-4 w-4" />
+              </Button>
+            </div>
+            <Input
+              type="datetime-local"
+              className="w-full"
+              {...manualForm.register("endTime")}
+            />
             {manualForm.formState.errors.endTime && (
               <p className="text-xs text-red-500">{manualForm.formState.errors.endTime.message}</p>
             )}

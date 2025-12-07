@@ -153,12 +153,14 @@ for delete using (
 );
 
 -- Projects: membership-based; admins can manage; insert allowed to admin/creator/elevated
+-- allow everyone to see the global Unassigned project (id fixed in seeds)
 drop policy if exists time_tracker_projects_select on public.time_tracker_projects;
 create policy time_tracker_projects_select on public.time_tracker_projects
 for select using (
   auth.role() = 'service_role'
   or current_user = 'postgres'
   or coalesce(auth.jwt()->>'role','') = 'admin'
+  or id = '00000000-0000-0000-0000-000000000002'
   or exists (
     select 1 from public.project_access pa
     where pa.project_id = id and pa.user_id = auth.uid()
@@ -309,6 +311,7 @@ for delete using (
 );
 
 -- Time entries: user-owned and must have project access; admin/elevated bypass
+-- allow entries on the global Unassigned project without membership
 drop policy if exists time_entries_select on public.time_entries;
 create policy time_entries_select on public.time_entries
 for select using (
@@ -317,12 +320,15 @@ for select using (
   or coalesce(auth.jwt()->>'role','') = 'admin'
   or (
     auth.uid() = user_id and
-    exists (
-      select 1 from public.project_access pa
-      where pa.user_id = auth.uid()
-        and pa.project_id = coalesce(time_entries.project_id,
-          (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
-        )
+    (
+      time_entries.project_id = '00000000-0000-0000-0000-000000000002'
+      or exists (
+        select 1 from public.project_access pa
+        where pa.user_id = auth.uid()
+          and pa.project_id = coalesce(time_entries.project_id,
+            (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
+          )
+      )
     )
   )
 );
@@ -335,12 +341,15 @@ for insert with check (
   or coalesce(auth.jwt()->>'role','') = 'admin'
   or (
     auth.uid() = user_id and
-    exists (
-      select 1 from public.project_access pa
-      where pa.user_id = auth.uid()
-        and pa.project_id = coalesce(time_entries.project_id,
-          (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
-        )
+    (
+      time_entries.project_id = '00000000-0000-0000-0000-000000000002'
+      or exists (
+        select 1 from public.project_access pa
+        where pa.user_id = auth.uid()
+          and pa.project_id = coalesce(time_entries.project_id,
+            (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
+          )
+      )
     )
   )
 );
@@ -353,12 +362,15 @@ for update using (
   or coalesce(auth.jwt()->>'role','') = 'admin'
   or (
     auth.uid() = user_id and
-    exists (
-      select 1 from public.project_access pa
-      where pa.user_id = auth.uid()
-        and pa.project_id = coalesce(time_entries.project_id,
-          (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
-        )
+    (
+      time_entries.project_id = '00000000-0000-0000-0000-000000000002'
+      or exists (
+        select 1 from public.project_access pa
+        where pa.user_id = auth.uid()
+          and pa.project_id = coalesce(time_entries.project_id,
+            (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
+          )
+      )
     )
   )
 )
@@ -368,12 +380,15 @@ with check (
   or coalesce(auth.jwt()->>'role','') = 'admin'
   or (
     auth.uid() = user_id and
-    exists (
-      select 1 from public.project_access pa
-      where pa.user_id = auth.uid()
-        and pa.project_id = coalesce(time_entries.project_id,
-          (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
-        )
+    (
+      time_entries.project_id = '00000000-0000-0000-0000-000000000002'
+      or exists (
+        select 1 from public.project_access pa
+        where pa.user_id = auth.uid()
+          and pa.project_id = coalesce(time_entries.project_id,
+            (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
+          )
+      )
     )
   )
 );
@@ -386,12 +401,15 @@ for delete using (
   or coalesce(auth.jwt()->>'role','') = 'admin'
   or (
     auth.uid() = user_id and
-    exists (
-      select 1 from public.project_access pa
-      where pa.user_id = auth.uid()
-        and pa.project_id = coalesce(time_entries.project_id,
-          (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
-        )
+    (
+      time_entries.project_id = '00000000-0000-0000-0000-000000000002'
+      or exists (
+        select 1 from public.project_access pa
+        where pa.user_id = auth.uid()
+          and pa.project_id = coalesce(time_entries.project_id,
+            (select t.project_id from public.time_tracker_tasks t where t.id = time_entries.task_id)
+          )
+      )
     )
   )
 );

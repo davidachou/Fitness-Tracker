@@ -9,9 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { TimeEntryForm, ProjectOption, StartFormValues, ManualFormValues, TaskOption } from "@/components/tracker/TimeEntryForm";
 import { RunningTimer } from "@/components/tracker/RunningTimer";
-import { TimeTimeline, TimelineEntry } from "@/components/tracker/TimeTimeline";
+import { TimeTimeline, TimelineEntry, EditEntryInput } from "@/components/tracker/TimeTimeline";
 import { ReportsModal } from "@/components/tracker/ReportsModal";
+import { BatchEntryDialog, BatchEntryInput } from "@/components/tracker/BatchEntryDialog";
 import { useTimerStore } from "@/components/tracker/useTimerStore";
+
+const UNASSIGNED_PROJECT_ID = "00000000-0000-0000-0000-000000000002";
+const UNASSIGNED_PROJECT_NAME = "Unassigned";
 
 type User = { id: string } | null;
 export default function TrackerPage() {
@@ -21,6 +25,7 @@ export default function TrackerPage() {
 
   const [user, setUser] = useState<User>(null);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -113,8 +118,10 @@ export default function TrackerPage() {
 
         return {
           id: row.id,
+          project_id: row.project_id,
           project_name: projectRel?.name,
           client: clientName,
+          task_id: row.task_id,
           task_name: taskRel?.name,
           description: row.description,
           duration_seconds: row.duration_seconds,
@@ -165,6 +172,7 @@ export default function TrackerPage() {
   const startTimerMutation = useMutation({
     mutationFn: async (values: StartFormValues) => {
       if (!user?.id) throw new Error("Missing user");
+      const projectId = values.projectId || UNASSIGNED_PROJECT_ID;
       const { data: existing } = await supabase
         .from("active_timers")
         .select("id")
@@ -175,7 +183,7 @@ export default function TrackerPage() {
       }
       const { error } = await supabase.from("active_timers").insert({
         user_id: user.id,
-        project_id: values.projectId || null,
+        project_id: projectId,
         task_id: values.taskId || null,
         description: values.description || null,
       });
@@ -183,15 +191,19 @@ export default function TrackerPage() {
     },
     onSuccess: (_data, variables) => {
       toast.success("Timer started");
+      const projectId = variables?.projectId || UNASSIGNED_PROJECT_ID;
+      const projectName =
+        projects.find((p) => p.id === projectId)?.name ??
+        (projectId === UNASSIGNED_PROJECT_ID ? UNASSIGNED_PROJECT_NAME : undefined);
       setRunningTimer({
         id: crypto.randomUUID(),
         user_id: user!.id,
-        project_id: variables?.projectId || null,
-        project_name: projects.find((p) => p.id === variables?.projectId)?.name ?? undefined,
+        project_id: projectId,
+        project_name: projectName,
         task_id: variables?.taskId || null,
         task_name: tasksQuery.data?.find((t) => t.id === variables?.taskId)?.name,
         description: variables?.description ?? null,
-        billable: projects.find((p) => p.id === variables?.projectId)?.billable ?? true,
+        billable: projects.find((p) => p.id === projectId)?.billable ?? true,
         start_time: new Date().toISOString(),
       });
       queryClient.invalidateQueries({ queryKey: ["active-timer", user?.id] });
@@ -203,13 +215,14 @@ export default function TrackerPage() {
   const stopTimerMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !runningTimer) throw new Error("No timer running");
+      const projectId = runningTimer.project_id || UNASSIGNED_PROJECT_ID;
       const end = new Date();
       const start = new Date(runningTimer.start_time);
       const duration = Math.max(1, differenceInSeconds(end, start));
 
       const { error: insertError } = await supabase.from("time_entries").insert({
         user_id: user.id,
-        project_id: runningTimer.project_id,
+        project_id: projectId,
         task_id: runningTimer.task_id || null,
         description: runningTimer.description,
         start_time: runningTimer.start_time,
@@ -232,7 +245,7 @@ export default function TrackerPage() {
           ? [
               {
                 id: crypto.randomUUID(),
-                project_name: runningTimer.project_name,
+                project_name: runningTimer.project_name ?? UNASSIGNED_PROJECT_NAME,
                 task_name: runningTimer.task_name,
                 description: runningTimer.description,
                 duration_seconds: duration,
@@ -256,6 +269,7 @@ export default function TrackerPage() {
   const manualEntryMutation = useMutation({
     mutationFn: async (values: ManualFormValues) => {
       if (!user?.id) throw new Error("Missing user");
+      const projectId = values.projectId || UNASSIGNED_PROJECT_ID;
       const start = new Date(values.startTime);
       const end = new Date(values.endTime);
       const duration = Math.max(1, differenceInSeconds(end, start));
@@ -264,7 +278,7 @@ export default function TrackerPage() {
         .from("time_entries")
         .insert({
           user_id: user.id,
-          project_id: values.projectId || null,
+          project_id: projectId,
           task_id: values.taskId || null,
           description: values.description,
           start_time: values.startTime,
@@ -282,6 +296,64 @@ export default function TrackerPage() {
     onSuccess: () => toast.success("Entry added"),
     onError: (err: unknown) =>
       toast.error(err instanceof Error ? err.message : "Could not save entry"),
+  });
+
+  const updateEntryMutation = useMutation({
+    mutationFn: async (input: EditEntryInput) => {
+      if (!user?.id) throw new Error("Missing user");
+      const projectId = input.projectId || UNASSIGNED_PROJECT_ID;
+      const start = new Date(input.startTime);
+      const end = new Date(input.endTime);
+      const duration = Math.max(1, differenceInSeconds(end, start));
+
+      const { error } = await supabase
+        .from("time_entries")
+        .update({
+          project_id: projectId,
+          task_id: input.taskId || null,
+          description: input.description,
+          start_time: input.startTime,
+          end_time: input.endTime,
+          duration_seconds: duration,
+          billable: input.billable ?? true,
+        })
+        .eq("id", input.id)
+        .eq("user_id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entry updated");
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-entries", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not update entry"),
+  });
+
+  const batchEntryMutation = useMutation({
+    mutationFn: async (rows: BatchEntryInput[]) => {
+      if (!user?.id) throw new Error("Missing user");
+      const payload = rows.map((r) => {
+        const start = new Date(r.startTime);
+        const end = new Date(r.endTime);
+        const duration = Math.max(1, differenceInSeconds(end, start));
+        return {
+          user_id: user.id,
+          project_id: r.projectId || UNASSIGNED_PROJECT_ID,
+          task_id: r.taskId || null,
+          description: r.description || null,
+          start_time: r.startTime,
+          end_time: r.endTime,
+          duration_seconds: duration,
+          billable: r.billable ?? true,
+        };
+      });
+      const { error } = await supabase.from("time_entries").insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Batch entries added");
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-entries", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not save batch"),
   });
 
   const projects = projectsQuery.data ?? [];
@@ -326,9 +398,30 @@ export default function TrackerPage() {
         </CardContent>
       </Card>
 
-      <TimeTimeline entries={entries} onGenerateReport={() => setReportsOpen(true)} />
+      <TimeTimeline
+        entries={entries}
+        projects={projects}
+        tasks={tasks}
+        onOpenBatch={() => setBatchOpen(true)}
+        onGenerateReport={() => setReportsOpen(true)}
+        onUpdateEntry={async (input) => {
+          await updateEntryMutation.mutateAsync(input);
+        }}
+        isUpdating={updateEntryMutation.isPending}
+      />
 
       <ReportsModal open={reportsOpen} onClose={() => setReportsOpen(false)} entries={entries} />
+
+      <BatchEntryDialog
+        open={batchOpen}
+        onClose={() => setBatchOpen(false)}
+        projects={projects}
+        tasks={tasks}
+        onSubmit={async (rows) => {
+          await batchEntryMutation.mutateAsync(rows);
+        }}
+        isSubmitting={batchEntryMutation.isPending}
+      />
     </div>
   );
 }

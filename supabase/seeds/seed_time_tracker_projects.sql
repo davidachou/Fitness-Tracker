@@ -1,6 +1,12 @@
 -- Shared seed: single set of clients/projects/tasks, and grant every user access
 -- Run with elevated role (service_role/postgres) so RLS is bypassed.
 
+-- ensure a globally available "Unassigned" client with deterministic UUID for app defaults
+-- UUID chosen to be stable across environments; adjust if it collides in an existing db
+insert into public.clients (id, name, status, notes)
+values ('00000000-0000-0000-0000-000000000001', 'Unassigned', 'Active', 'Fallback client for unassigned timers')
+on conflict (name) do nothing;
+
 -- insert clients (idempotent by name)
 with clients(name, status, notes) as (
   values
@@ -27,6 +33,13 @@ where not exists (
   select 1 from public.clients existing
   where existing.name = c.name
 );
+
+-- ensure a globally available "Unassigned" project under the Unassigned client
+insert into public.time_tracker_projects (id, client_id, name, billable)
+select '00000000-0000-0000-0000-000000000002', c.id, 'Unassigned', true
+from public.clients c
+where c.name = 'Unassigned'
+on conflict (client_id, name) do nothing;
 
 -- insert projects (idempotent by client+name)
 with projects(client_name, name, billable) as (
@@ -66,6 +79,13 @@ where not exists (
   where existing.client_id = cl.id
     and existing.name = p.name
 );
+
+-- ensure an "Unassigned" task for the unassigned project (optional use in UI)
+insert into public.time_tracker_tasks (id, project_id, name)
+select '00000000-0000-0000-0000-000000000003', p.id, 'Unassigned'
+from public.time_tracker_projects p
+where p.name = 'Unassigned'
+on conflict (project_id, name) do nothing;
 
 -- insert tasks (idempotent by project+name)
 with task_defs(project_name, task_name) as (

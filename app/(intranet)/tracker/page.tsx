@@ -5,8 +5,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { differenceInSeconds } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TimeEntryForm, ProjectOption, StartFormValues, ManualFormValues, TaskOption } from "@/components/tracker/TimeEntryForm";
 import { RunningTimer } from "@/components/tracker/RunningTimer";
 import { TimeTimeline, TimelineEntry, EditEntryInput } from "@/components/tracker/TimeTimeline";
@@ -24,8 +30,11 @@ export default function TrackerPage() {
   const { runningTimer, setRunningTimer } = useTimerStore();
 
   const [user, setUser] = useState<User>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [clientForm, setClientForm] = useState({ name: "", status: "", notes: "" });
+  const [projectForm, setProjectForm] = useState({ clientId: "", name: "", billable: true });
 
   useEffect(() => {
     const loadUser = async () => {
@@ -33,6 +42,10 @@ export default function TrackerPage() {
         data: { user },
       } = await supabase.auth.getUser();
       setUser(user);
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single();
+        setIsAdmin(Boolean(profile?.is_admin));
+      }
     };
     loadUser();
   }, [supabase]);
@@ -62,6 +75,16 @@ export default function TrackerPage() {
           client: clientName,
         };
       }) as ProjectOption[];
+    },
+  });
+
+  const clientsQuery = useQuery({
+    queryKey: ["time-tracker-clients", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, name, status").order("name", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; name: string; status: string | null }[];
     },
   });
 
@@ -328,6 +351,56 @@ export default function TrackerPage() {
     onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not update entry"),
   });
 
+  const createClientMutation = useMutation({
+    mutationFn: async (values: { name: string; status?: string; notes?: string }) => {
+      if (!user?.id) throw new Error("Missing user");
+      const { data, error } = await supabase
+        .from("clients")
+        .insert({
+          name: values.name.trim(),
+          status: values.status?.trim() || null,
+          notes: values.notes?.trim() || null,
+        })
+        .select("id, name")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Client created");
+      setClientForm({ name: "", status: "", notes: "" });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-clients", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-projects", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not create client"),
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (values: { clientId: string; name: string; billable: boolean }) => {
+      if (!user?.id) throw new Error("Missing user");
+      if (!values.clientId) throw new Error("Select a client");
+      const { data, error } = await supabase
+        .from("time_tracker_projects")
+        .insert({
+          client_id: values.clientId,
+          name: values.name.trim(),
+          billable: values.billable,
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Project created");
+      setProjectForm({ clientId: "", name: "", billable: true });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-projects", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-entries", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not create project"),
+  });
+
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!user?.id) throw new Error("Missing user");
@@ -370,6 +443,7 @@ export default function TrackerPage() {
   });
 
   const projects = projectsQuery.data ?? [];
+  const clients = clientsQuery.data ?? [];
   const tasks = tasksQuery.data ?? [];
   const entries = entriesQuery.data ?? [];
 
@@ -426,6 +500,140 @@ export default function TrackerPage() {
         }}
         isDeleting={deleteEntryMutation.isPending}
       />
+
+      {isAdmin && (
+        <Card className="border-dashed border-primary/30 bg-card/80">
+          <CardHeader>
+            <CardTitle>Admin · Clients & Projects</CardTitle>
+            <CardDescription>Seed new clients and projects directly from the UI.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Add client</p>
+                <p className="text-xs text-muted-foreground">Name required; status/notes optional.</p>
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Name</Label>
+                  <Input
+                    value={clientForm.name}
+                    onChange={(e) => setClientForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., New Client LLC"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Input
+                    value={clientForm.status}
+                    onChange={(e) => setClientForm((prev) => ({ ...prev, status: e.target.value }))}
+                    placeholder="Active / On Hold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={clientForm.notes}
+                    onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Optional context"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={async () => {
+                      if (!clientForm.name.trim()) {
+                        toast.error("Client name is required");
+                        return;
+                      }
+                      await createClientMutation.mutateAsync(clientForm);
+                    }}
+                    disabled={createClientMutation.isPending}
+                  >
+                    {createClientMutation.isPending ? "Saving..." : "Add client"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setClientForm({ name: "", status: "", notes: "" })}
+                    disabled={createClientMutation.isPending}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Add project</p>
+                <p className="text-xs text-muted-foreground">Requires a client; billable defaults on.</p>
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Client</Label>
+                  <Select
+                    value={projectForm.clientId || (clients[0]?.id ?? "")}
+                    onValueChange={(val) => setProjectForm((prev) => ({ ...prev, clientId: val }))}
+                    disabled={clientsQuery.isLoading || clients.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={clientsQuery.isLoading ? "Loading..." : "Select client"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Project name</Label>
+                  <Input
+                    value={projectForm.name}
+                    onChange={(e) => setProjectForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Pricing Analysis"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="billable-toggle"
+                    checked={projectForm.billable}
+                    onCheckedChange={(val) => setProjectForm((prev) => ({ ...prev, billable: Boolean(val) }))}
+                  />
+                  <Label htmlFor="billable-toggle">Billable</Label>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={async () => {
+                      if (!projectForm.clientId) {
+                        toast.error("Select a client");
+                        return;
+                      }
+                      if (!projectForm.name.trim()) {
+                        toast.error("Project name is required");
+                        return;
+                      }
+                      await createProjectMutation.mutateAsync(projectForm);
+                    }}
+                    disabled={createProjectMutation.isPending}
+                  >
+                    {createProjectMutation.isPending ? "Saving..." : "Add project"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setProjectForm({ clientId: "", name: "", billable: true })}
+                    disabled={createProjectMutation.isPending}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <ReportsModal open={reportsOpen} onClose={() => setReportsOpen(false)} entries={entries} />
 

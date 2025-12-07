@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format, intervalToDuration, isAfter, startOfToday, startOfWeek } from "date-fns";
-import { Clock3, DollarSign, FileSpreadsheet, Timer, Pencil, Trash2, ListPlus } from "lucide-react";
+import { Clock3, DollarSign, FileSpreadsheet, Timer, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -38,8 +38,6 @@ type TimeTimelineProps = {
   tasks: TaskOption[];
   onUpdateEntry: (input: EditEntryInput) => Promise<void> | void;
   isUpdating?: boolean;
-  onDeleteEntry?: (id: string) => Promise<void> | void;
-  isDeleting?: boolean;
 };
 
 export type EditEntryInput = {
@@ -81,8 +79,6 @@ export function TimeTimeline({
   tasks,
   onUpdateEntry,
   isUpdating,
-  onDeleteEntry,
-  isDeleting,
 }: TimeTimelineProps) {
   const [tab, setTab] = useState<"today" | "week" | "all">("today");
   const [editing, setEditing] = useState<EditEntryInput | null>(null);
@@ -182,17 +178,6 @@ export function TimeTimeline({
     closeEdit();
   };
 
-  const handleDelete = async () => {
-    if (!editing || !onDeleteEntry) return;
-    setError(null);
-    try {
-      await onDeleteEntry(editing.id);
-      closeEdit();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete entry");
-    }
-  };
-
   return (
     <Card className="border-border/70 bg-card/80">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -209,8 +194,8 @@ export function TimeTimeline({
             </TabsList>
           </Tabs>
           {onOpenBatch && (
-            <Button variant="secondary" size="sm" className="gap-2" onClick={onOpenBatch}>
-              <ListPlus className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="gap-2" onClick={onOpenBatch}>
+              <Timer className="h-4 w-4" />
               Batch add
             </Button>
           )}
@@ -415,18 +400,10 @@ export function TimeTimeline({
               {error && <p className="text-sm text-red-500">{error}</p>}
 
               <DialogFooter>
-                <Button variant="outline" onClick={handleDelete} disabled={isUpdating || isDeleting}>
-                  {isDeleting ? "Deleting..." : (
-                    <>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </>
-                  )}
-                </Button>
-                <Button variant="ghost" onClick={closeEdit} disabled={isUpdating || isDeleting}>
+                <Button variant="ghost" onClick={closeEdit} disabled={isUpdating}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={isUpdating || isDeleting}>
+                <Button onClick={handleSave} disabled={isUpdating}>
                   {isUpdating ? "Saving..." : "Save changes"}
                 </Button>
               </DialogFooter>
@@ -457,4 +434,3 @@ function SummaryStat({
     </div>
   );
 }
-

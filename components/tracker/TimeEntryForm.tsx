@@ -36,8 +36,8 @@ const manualSchema = z
     { message: "End time must be after start time", path: ["endTime"] },
   );
 
-export type StartFormValues = z.infer<typeof startSchema>;
-export type ManualFormValues = z.infer<typeof manualSchema>;
+export type StartFormValues = z.infer<typeof startSchema> & { client?: string };
+export type ManualFormValues = z.infer<typeof manualSchema> & { client?: string };
 
 export type ProjectOption = {
   id: string;
@@ -130,7 +130,7 @@ export function TimeEntryForm({
       startForm.setValue("taskId", undefined);
       manualForm.setValue("taskId", undefined);
     }
-  }, [projects, startForm, manualForm]);
+  }, [clients, startForm, manualForm]);
 
   // Clear selections when client is cleared
   useEffect(() => {
@@ -182,7 +182,7 @@ export function TimeEntryForm({
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <form
-        onSubmit={startForm.handleSubmit(async (values) => onStart(values))}
+        onSubmit={startForm.handleSubmit(async (values) => onStart({ ...values, client: startClient || undefined }))}
         className="space-y-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm"
       >
         <div className="flex items-center justify-between">
@@ -327,7 +327,7 @@ export function TimeEntryForm({
       </form>
 
       <form
-        onSubmit={manualForm.handleSubmit(async (values) => onManualSubmit(values))}
+        onSubmit={manualForm.handleSubmit(async (values) => onManualSubmit({ ...values, client: manualClient || undefined }))}
         className="space-y-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm"
       >
         <div className="flex items-center justify-between">

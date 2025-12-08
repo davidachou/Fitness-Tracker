@@ -6,6 +6,8 @@ export type RunningTimer = {
   id: string;
   user_id: string;
   project_id: string | null;
+  client_id?: string | null;
+  client_name?: string | null;
   task_id?: string | null;
   description: string | null;
   start_time: string;

@@ -19,6 +19,7 @@ import type { ProjectOption, TaskOption } from "./TimeEntryForm";
 export type TimelineEntry = {
   id: string;
   project_id?: string | null;
+  client_id?: string | null;
   project_name?: string | null;
   client?: string | null;
   project_archived?: boolean | null;
@@ -262,8 +263,11 @@ export function TimeTimeline({
                       .map((entry) => (
                         <div key={entry.id} className="flex items-start justify-between gap-3 rounded-lg bg-muted/40 p-2">
                           <div className="flex-1">
-                            <p className="text-sm font-medium">
-                              {entry.project_name || "Untitled project"}
+                            <p className="text-sm font-semibold">
+                              Client: {entry.client || UNASSIGNED_CLIENT_LABEL}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Project: {entry.project_name || "Unassigned"}
                               {entry.task_name ? ` / ${entry.task_name}` : ""}
                             </p>
                             {(entry.project_archived || entry.client_archived) && (

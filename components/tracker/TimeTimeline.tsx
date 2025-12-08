@@ -37,6 +37,7 @@ type TimeTimelineProps = {
   onGenerateReportAction: () => void;
   onOpenBatchAction?: () => void;
   projects: ProjectOption[];
+  clients: { name: string; archived?: boolean | null }[];
   tasks: TaskOption[];
   onUpdateEntryAction: (input: EditEntryInput) => Promise<void> | void;
   isUpdating?: boolean;
@@ -80,6 +81,7 @@ export function TimeTimeline({
   onGenerateReportAction,
   onOpenBatchAction,
   projects,
+  clients,
   tasks,
   onUpdateEntryAction,
   isUpdating,
@@ -92,12 +94,12 @@ export function TimeTimeline({
 
   const uniqueClients = useMemo(() => {
     const set = new Set<string>();
-    projects.forEach((p) => {
-      if (p.client) set.add(p.client);
+    clients.forEach((c) => {
+      if (!c.archived) set.add(c.name);
     });
     set.add(UNASSIGNED_CLIENT_LABEL);
     return Array.from(set);
-  }, [projects]);
+  }, [clients]);
 
   const filteredEntries = useMemo(() => {
     if (tab === "all") return entries;

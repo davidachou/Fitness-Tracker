@@ -523,6 +523,7 @@ export default function TrackerPage() {
           <TimeEntryForm
             key={projects.map((p) => p.id).join("-")}
             projects={projects}
+            clients={clients}
             tasks={tasks}
             onStart={async (vals) => {
               await startTimerMutation.mutateAsync(vals);
@@ -544,6 +545,7 @@ export default function TrackerPage() {
       <TimeTimeline
         entries={entries}
         projects={projects}
+        clients={clients}
         tasks={tasks}
         onOpenBatchAction={() => setBatchOpen(true)}
         onGenerateReportAction={() => setReportsOpen(true)}
@@ -792,6 +794,7 @@ export default function TrackerPage() {
         onClose={() => setBatchOpen(false)}
         projects={projects}
         tasks={tasks}
+        clients={clients}
         onSubmit={async (rows) => {
           await batchEntryMutation.mutateAsync(rows);
         }}

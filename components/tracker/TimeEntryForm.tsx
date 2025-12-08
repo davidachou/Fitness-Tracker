@@ -53,9 +53,16 @@ export type TaskOption = {
   project_id: string | null;
 };
 
+type ClientOption = {
+  id: string;
+  name: string;
+  archived?: boolean | null;
+};
+
 type TimeEntryFormProps = {
   projects: ProjectOption[];
   tasks: TaskOption[];
+  clients: ClientOption[];
   isStarting?: boolean;
   isManualSubmitting?: boolean;
   isCreatingTask?: boolean;
@@ -68,6 +75,7 @@ type TimeEntryFormProps = {
 export function TimeEntryForm({
   projects,
   tasks,
+  clients,
   isStarting,
   isManualSubmitting,
   isCreatingTask,
@@ -82,13 +90,11 @@ export function TimeEntryForm({
 
   const uniqueClients = useMemo(() => {
     const set = new Set<string>();
-    projects
-      .filter((p) => !p.archived)
-      .forEach((p) => {
-      if (p.client) set.add(p.client);
-    });
+    clients
+      .filter((c) => !c.archived)
+      .forEach((c) => set.add(c.name));
     return Array.from(set);
-  }, [projects]);
+  }, [clients]);
   const startForm = useForm<StartFormValues>({
     resolver: zodResolver(startSchema),
     defaultValues: {
@@ -110,10 +116,10 @@ export function TimeEntryForm({
     },
   });
 
-  // Initialize client filters to first available client when projects change
+  // Initialize client filters to first available client when clients change
   useEffect(() => {
-    if (projects.length > 0) {
-      const firstClient = projects.find((p) => p.client)?.client ?? "";
+    if (clients.length > 0) {
+      const firstClient = clients.find((c) => !c.archived)?.name ?? "";
       setStartClient((prev) => (prev ? prev : firstClient));
       setManualClient((prev) => (prev ? prev : firstClient));
     } else {
@@ -218,10 +224,10 @@ export function TimeEntryForm({
           {(() => {
             const filteredProjects = filterProjects(startClient);
             const startValue =
-              disableStart || projects.length === 0 || !startClient || filteredProjects.length === 0
+              disableStart || !startClient || filteredProjects.length === 0
                 ? "unassigned"
                 : startForm.watch("projectId") ?? "unassigned";
-            const disabled = disableStart || projects.length === 0 || !startClient;
+            const disabled = disableStart || !startClient;
             return (
               <Select
                 value={startValue}
@@ -359,10 +365,10 @@ export function TimeEntryForm({
           {(() => {
             const filteredProjects = filterProjects(manualClient);
             const manualValue =
-              projects.length === 0 || !manualClient || filteredProjects.length === 0
+              !manualClient || filteredProjects.length === 0
                 ? "unassigned"
                 : manualForm.watch("projectId") ?? "unassigned";
-            const disabled = projects.length === 0 || !manualClient;
+            const disabled = !manualClient;
             return (
               <Select
                 value={manualValue}

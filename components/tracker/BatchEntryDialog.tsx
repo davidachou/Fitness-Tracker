@@ -53,22 +53,23 @@ type Props = {
   onClose: () => void;
   projects: ProjectOption[];
   tasks: TaskOption[];
+  clients: { name: string; archived?: boolean | null }[];
   onSubmit: (rows: BatchEntryInput[]) => Promise<void> | void;
   isSubmitting?: boolean;
 };
 
-export function BatchEntryDialog({ open, onClose, projects, tasks, onSubmit, isSubmitting }: Props) {
+export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSubmit, isSubmitting }: Props) {
   const [rows, setRows] = useState<BatchEntryInput[]>([defaultRow(), defaultRow()]);
   const [error, setError] = useState<string | null>(null);
 
   const uniqueClients = useMemo(() => {
     const set = new Set<string>();
-    projects.forEach((p) => {
-      if (p.client) set.add(p.client);
+    clients.forEach((c) => {
+      if (!c.archived) set.add(c.name);
     });
     set.add(UNASSIGNED_CLIENT_LABEL);
     return Array.from(set);
-  }, [projects]);
+  }, [clients]);
 
   const projectsForClient = useMemo(
     () => (client?: string | null) =>

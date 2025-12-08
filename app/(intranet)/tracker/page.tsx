@@ -35,6 +35,8 @@ export default function TrackerPage() {
   const [batchOpen, setBatchOpen] = useState(false);
   const [clientForm, setClientForm] = useState({ name: "", status: "", notes: "" });
   const [projectForm, setProjectForm] = useState({ clientId: "", name: "", billable: true });
+  const [archiveClientId, setArchiveClientId] = useState<string>("");
+  const [archiveProjectId, setArchiveProjectId] = useState<string>("");
 
   useEffect(() => {
     const loadUser = async () => {
@@ -56,23 +58,30 @@ export default function TrackerPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("time_tracker_projects")
-        .select("id, name, billable, clients(name)")
+        .select("id, name, billable, archived, clients(name, archived)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       type ProjectRow = {
         id: string;
         name: string;
         billable: boolean | null;
-        clients: { name?: string | null } | { name?: string | null }[] | null;
+        archived?: boolean | null;
+        clients:
+          | { name?: string | null; archived?: boolean | null }
+          | { name?: string | null; archived?: boolean | null }[]
+          | null;
       };
       return (data as ProjectRow[]).map((p) => {
         const clients = p.clients;
         const clientName = Array.isArray(clients) ? clients[0]?.name ?? null : clients?.name ?? null;
+        const clientArchived = Array.isArray(clients) ? clients[0]?.archived ?? false : clients?.archived ?? false;
         return {
           id: p.id,
           name: p.name,
           billable: p.billable,
           client: clientName,
+          archived: p.archived ?? false,
+          client_archived: clientArchived,
         };
       }) as ProjectOption[];
     },
@@ -82,9 +91,12 @@ export default function TrackerPage() {
     queryKey: ["time-tracker-clients", user?.id],
     enabled: Boolean(user?.id),
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("id, name, status").order("name", { ascending: true });
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, status, archived")
+        .order("name", { ascending: true });
       if (error) throw error;
-      return data as { id: string; name: string; status: string | null }[];
+      return data as { id: string; name: string; status: string | null; archived?: boolean | null }[];
     },
   });
 
@@ -95,7 +107,7 @@ export default function TrackerPage() {
       const { data, error } = await supabase
         .from("time_entries")
         .select(
-          "id, user_id, project_id, task_id, description, start_time, end_time, duration_seconds, billable, time_tracker_projects(name, billable, clients(name)), time_tracker_tasks(name, project_id)",
+          "id, user_id, project_id, task_id, description, start_time, end_time, duration_seconds, billable, time_tracker_projects(name, billable, archived, clients(name, archived)), time_tracker_tasks(name, project_id)",
         )
         .eq("user_id", user!.id)
         .order("start_time", { ascending: false });
@@ -114,12 +126,20 @@ export default function TrackerPage() {
           | {
               name?: string | null;
               billable?: boolean | null;
-              clients?: { name?: string | null } | { name?: string | null }[] | null;
+              archived?: boolean | null;
+              clients?:
+                | { name?: string | null; archived?: boolean | null }
+                | { name?: string | null; archived?: boolean | null }[]
+                | null;
             }
           | {
               name?: string | null;
               billable?: boolean | null;
-              clients?: { name?: string | null } | { name?: string | null }[] | null;
+              archived?: boolean | null;
+              clients?:
+                | { name?: string | null; archived?: boolean | null }
+                | { name?: string | null; archived?: boolean | null }[]
+                | null;
             }[]
           | null;
         time_tracker_tasks:
@@ -134,6 +154,7 @@ export default function TrackerPage() {
           : row.time_tracker_projects;
         const clientRel = projectRel?.clients;
         const clientName = Array.isArray(clientRel) ? clientRel[0]?.name ?? null : clientRel?.name ?? null;
+        const clientArchived = Array.isArray(clientRel) ? clientRel[0]?.archived ?? false : clientRel?.archived ?? false;
 
         const taskRel = Array.isArray(row.time_tracker_tasks)
           ? row.time_tracker_tasks[0]
@@ -143,6 +164,8 @@ export default function TrackerPage() {
           id: row.id,
           project_id: row.project_id,
           project_name: projectRel?.name,
+          project_archived: projectRel?.archived ?? false,
+          client_archived: clientArchived,
           client: clientName,
           task_id: row.task_id,
           task_name: taskRel?.name,
@@ -401,6 +424,39 @@ export default function TrackerPage() {
     onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not create project"),
   });
 
+  const archiveClientMutation = useMutation({
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
+      const { error } = await supabase
+        .from("clients")
+        .update({ archived, archived_at: archived ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Client updated");
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-clients", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-projects", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-entries", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not update client"),
+  });
+
+  const archiveProjectMutation = useMutation({
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
+      const { error } = await supabase
+        .from("time_tracker_projects")
+        .update({ archived, archived_at: archived ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Project updated");
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-projects", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["time-tracker-entries", user?.id] });
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : "Could not update project"),
+  });
+
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!user?.id) throw new Error("Missing user");
@@ -627,6 +683,100 @@ export default function TrackerPage() {
                     disabled={createProjectMutation.isPending}
                   >
                     Clear
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border/60 bg-muted/40 p-3">
+                <div>
+                  <p className="text-sm font-semibold">Archive / Unarchive client</p>
+                  <p className="text-xs text-muted-foreground">Hide from selection lists without deleting data.</p>
+                </div>
+                <Select value={archiveClientId} onValueChange={(val) => setArchiveClientId(val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.archived ? "(Archived)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      if (!archiveClientId) {
+                        toast.error("Select a client");
+                        return;
+                      }
+                      await archiveClientMutation.mutateAsync({ id: archiveClientId, archived: true });
+                    }}
+                    disabled={archiveClientMutation.isPending}
+                  >
+                    Archive
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (!archiveClientId) {
+                        toast.error("Select a client");
+                        return;
+                      }
+                      await archiveClientMutation.mutateAsync({ id: archiveClientId, archived: false });
+                    }}
+                    disabled={archiveClientMutation.isPending}
+                  >
+                    Unarchive
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border/60 bg-muted/40 p-3">
+                <div>
+                  <p className="text-sm font-semibold">Archive / Unarchive project</p>
+                  <p className="text-xs text-muted-foreground">Prevent new time entries without losing history.</p>
+                </div>
+                <Select value={archiveProjectId} onValueChange={(val) => setArchiveProjectId(val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} {p.archived ? "(Archived)" : ""} {p.client ? `— ${p.client}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      if (!archiveProjectId) {
+                        toast.error("Select a project");
+                        return;
+                      }
+                      await archiveProjectMutation.mutateAsync({ id: archiveProjectId, archived: true });
+                    }}
+                    disabled={archiveProjectMutation.isPending}
+                  >
+                    Archive
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (!archiveProjectId) {
+                        toast.error("Select a project");
+                        return;
+                      }
+                      await archiveProjectMutation.mutateAsync({ id: archiveProjectId, archived: false });
+                    }}
+                    disabled={archiveProjectMutation.isPending}
+                  >
+                    Unarchive
                   </Button>
                 </div>
               </div>

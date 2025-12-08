@@ -44,6 +44,7 @@ export type ProjectOption = {
   name: string;
   client?: string | null;
   billable?: boolean | null;
+  archived?: boolean | null;
 };
 
 export type TaskOption = {
@@ -81,7 +82,9 @@ export function TimeEntryForm({
 
   const uniqueClients = useMemo(() => {
     const set = new Set<string>();
-    projects.forEach((p) => {
+    projects
+      .filter((p) => !p.archived)
+      .forEach((p) => {
       if (p.client) set.add(p.client);
     });
     return Array.from(set);
@@ -139,7 +142,8 @@ export function TimeEntryForm({
   }, [manualClient, manualForm]);
 
   const filterProjects = useMemo(
-    () => (clientFilter: string) => projects.filter((p) => !clientFilter || p.client === clientFilter),
+    () => (clientFilter: string) =>
+      projects.filter((p) => !p.archived && (!clientFilter || p.client === clientFilter)),
     [projects],
   );
 

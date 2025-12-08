@@ -21,6 +21,8 @@ export type TimelineEntry = {
   project_id?: string | null;
   project_name?: string | null;
   client?: string | null;
+  project_archived?: boolean | null;
+  client_archived?: boolean | null;
   task_id?: string | null;
   task_name?: string | null;
   description?: string | null;
@@ -262,6 +264,11 @@ export function TimeTimeline({
                               {entry.project_name || "Untitled project"}
                               {entry.task_name ? ` / ${entry.task_name}` : ""}
                             </p>
+                            {(entry.project_archived || entry.client_archived) && (
+                              <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                Archived
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">{entry.description || "No description"}</p>
                             <p className="text-[11px] text-muted-foreground">
                               {format(new Date(entry.start_time), "p")} –{" "}

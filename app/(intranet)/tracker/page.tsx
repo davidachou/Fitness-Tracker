@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TimeEntryForm, ProjectOption, StartFormValues, ManualFormValues, TaskOption } from "@/components/tracker/TimeEntryForm";
@@ -33,7 +32,7 @@ export default function TrackerPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
-  const [clientForm, setClientForm] = useState({ name: "", status: "", notes: "" });
+  const [clientForm, setClientForm] = useState({ name: "" });
   const [projectForm, setProjectForm] = useState({ clientId: "", name: "", billable: true });
   const [archiveClientId, setArchiveClientId] = useState<string>("");
   const [archiveProjectId, setArchiveProjectId] = useState<string>("");
@@ -93,10 +92,10 @@ export default function TrackerPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, status, archived")
+        .select("id, name, archived")
         .order("name", { ascending: true });
       if (error) throw error;
-      return data as { id: string; name: string; status: string | null; archived?: boolean | null }[];
+      return data as { id: string; name: string; archived?: boolean | null }[];
     },
   });
 
@@ -399,14 +398,12 @@ export default function TrackerPage() {
   });
 
   const createClientMutation = useMutation({
-    mutationFn: async (values: { name: string; status?: string; notes?: string }) => {
+    mutationFn: async (values: { name: string }) => {
       if (!user?.id) throw new Error("Missing user");
       const { data, error } = await supabase
         .from("clients")
         .insert({
           name: values.name.trim(),
-          status: values.status?.trim() || null,
-          notes: values.notes?.trim() || null,
         })
         .select("id, name")
         .single();
@@ -415,7 +412,7 @@ export default function TrackerPage() {
     },
     onSuccess: () => {
       toast.success("Client created");
-      setClientForm({ name: "", status: "", notes: "" });
+      setClientForm({ name: "" });
       queryClient.invalidateQueries({ queryKey: ["time-tracker-clients", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["time-tracker-projects", user?.id] });
     },
@@ -595,7 +592,7 @@ export default function TrackerPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-semibold">Add client</p>
-                <p className="text-xs text-muted-foreground">Name required; status/notes optional.</p>
+                <p className="text-xs text-muted-foreground">Name required.</p>
               </div>
               <div className="space-y-3">
                 <div className="space-y-2">
@@ -604,23 +601,6 @@ export default function TrackerPage() {
                     value={clientForm.name}
                     onChange={(e) => setClientForm((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., New Client LLC"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Input
-                    value={clientForm.status}
-                    onChange={(e) => setClientForm((prev) => ({ ...prev, status: e.target.value }))}
-                    placeholder="Active / On Hold"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={clientForm.notes}
-                    onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Optional context"
-                    rows={3}
                   />
                 </div>
                 <div className="flex gap-2">
@@ -638,7 +618,7 @@ export default function TrackerPage() {
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => setClientForm({ name: "", status: "", notes: "" })}
+                    onClick={() => setClientForm({ name: "" })}
                     disabled={createClientMutation.isPending}
                   >
                     Clear

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { differenceInSeconds } from "date-fns";
-import { Plus, Trash2 } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,14 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
 
   const addRow = () => setRows((prev) => [...prev, defaultRow()]);
   const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
+  const duplicateRow = (id: string) =>
+    setRows((prev) => {
+      const source = prev.find((r) => r.id === id);
+      if (!source) return prev;
+      const rest = { ...source };
+      delete (rest as Partial<BatchEntryInput>).id;
+      return [...prev, { ...rest, id: crypto.randomUUID() }];
+    });
 
   const handleSave = async () => {
     setError(null);
@@ -129,8 +137,7 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
           <DialogDescription>Quickly add multiple time entries in one go.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Use the widest space to enter your week or day.</p>
+          <div className="flex items-center justify-end">
             <Button variant="outline" size="sm" className="gap-2" onClick={addRow}>
               <Plus className="h-4 w-4" />
               Add row
@@ -139,7 +146,7 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
 
           <ScrollArea className="h-[55vh] rounded-lg border border-border/60">
             <div className="min-w-[1500px] divide-y divide-border/60">
-              <div className="grid grid-cols-[1.2fr,1.2fr,1fr,1fr,1fr,1.8fr,120px,120px] gap-3 bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="grid grid-cols-[1.2fr,1.2fr,1fr,1fr,1fr,1.8fr,120px,150px] gap-3 bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>Client</span>
                 <span>Project</span>
                 <span>Task</span>
@@ -155,7 +162,7 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
                 return (
                   <div
                     key={row.id}
-                    className="grid grid-cols-[1.2fr,1.2fr,1fr,1fr,1fr,1.8fr,120px,120px] items-start gap-3 px-3 py-3"
+                    className="grid grid-cols-[1.2fr,1.2fr,1fr,1fr,1fr,1.8fr,120px,150px] items-start gap-3 px-3 py-3"
                   >
                     <Select
                       value={row.client || UNASSIGNED_CLIENT_LABEL}
@@ -190,7 +197,7 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
                         <SelectItem value={UNASSIGNED_PROJECT_ID}>Unassigned</SelectItem>
                         {projectOptions.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.client ? `${p.name} — ${p.client}` : p.name}
+                            {p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -237,6 +244,9 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
                       />
                     </div>
                     <div className="flex items-center justify-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => duplicateRow(row.id)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => removeRow(row.id)} disabled={rows.length === 1}>
                         <Trash2 className="h-4 w-4" />
                       </Button>

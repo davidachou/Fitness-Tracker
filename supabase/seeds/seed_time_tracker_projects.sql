@@ -3,31 +3,31 @@
 
 -- ensure a globally available "Unassigned" client with deterministic UUID for app defaults
 -- UUID chosen to be stable across environments; adjust if it collides in an existing db
-insert into public.clients (id, name, status, notes)
-values ('00000000-0000-0000-0000-000000000001', 'Unassigned', 'Active', 'Fallback client for unassigned timers')
+insert into public.clients (id, name)
+values ('00000000-0000-0000-0000-000000000001', 'Unassigned')
 on conflict (name) do nothing;
 
 -- insert clients (idempotent by name)
-with clients(name, status, notes) as (
+with clients(name) as (
   values
-    ('Aligned Marketplace', 'Active', 'Marketing Strategy'),
-    ('Apree', 'Active', 'ICHRA Assessment'),
-    ('Archwell', 'Active', 'IBNR'),
-    ('Backpack Healthcare', 'Active', 'Medicaid Bundled Payment Pricing'),
-    ('BDC Advisors', 'Active', 'Consulting'),
-    ('Community Health Options', 'Active', 'Health Plan Consulting'),
-    ('Doro Mind', 'Active', 'Provider Contracting'),
-    ('Firefly Health', 'Active', 'Benefit Design Development'),
-    ('Flourish', 'Active', 'SOW #1'),
-    ('Harbor Health', 'Active', '2026 ACA Filing'),
-    ('KK Advisory Services', 'Active', 'Internal Client'),
-    ('Lifepoint Health', 'Active', 'Contract Negotiation'),
-    ('River Health', 'Active', 'Market Assessment'),
-    ('Texicare', 'Active', 'DPC Analysis'),
-    ('Watershed', 'Active', 'Growth Strategy Support')
+    ('Aligned Marketplace'),
+    ('Apree'),
+    ('Archwell'),
+    ('Backpack Healthcare'),
+    ('BDC Advisors'),
+    ('Community Health Options'),
+    ('Doro Mind'),
+    ('Firefly Health'),
+    ('Flourish'),
+    ('Harbor Health'),
+    ('KK Advisory Services'),
+    ('Lifepoint Health'),
+    ('River Health'),
+    ('Texicare'),
+    ('Watershed')
 )
-insert into public.clients (name, status, notes)
-select c.name, c.status, c.notes
+insert into public.clients (name)
+select c.name
 from clients c
 where not exists (
   select 1 from public.clients existing

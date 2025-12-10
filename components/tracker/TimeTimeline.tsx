@@ -162,6 +162,18 @@ export function TimeTimeline({
     setError(null);
   };
 
+  const confirmAndDelete = async (id: string) => {
+    if (!onDeleteEntryAction) return;
+    const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this time entry?");
+    if (!confirmed) return;
+    setError(null);
+    try {
+      await onDeleteEntryAction(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete entry");
+    }
+  };
+
   const handleSave = async () => {
     if (!editing) return;
     setError(null);
@@ -292,6 +304,14 @@ export function TimeTimeline({
                             </div>
                             <Button variant="ghost" size="icon" onClick={() => openEdit(entry)}>
                               <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => confirmAndDelete(entry.id)}
+                              disabled={isDeleting}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>

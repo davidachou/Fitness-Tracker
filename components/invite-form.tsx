@@ -15,6 +15,9 @@ interface InviteFormData {
   fullName: string
   role: string
   expertise: string
+  slackUrl: string
+  linkedinUrl: string
+  bio: string
   isAdmin: boolean
 }
 
@@ -27,6 +30,9 @@ export function InviteForm() {
     fullName: '',
     role: '',
     expertise: '',
+    slackUrl: '',
+    linkedinUrl: '',
+    bio: '',
     isAdmin: false
   })
 
@@ -57,6 +63,9 @@ export function InviteForm() {
           fullName: formData.fullName,
           role: formData.role,
           expertise: formData.expertise.split(',').map(tag => tag.trim()).filter(Boolean),
+          slackUrl: formData.slackUrl,
+          linkedinUrl: formData.linkedinUrl,
+          bio: formData.bio,
           isAdmin: formData.isAdmin
         }),
       })
@@ -74,6 +83,9 @@ export function InviteForm() {
         fullName: '',
         role: '',
         expertise: '',
+        slackUrl: '',
+        linkedinUrl: '',
+        bio: '',
         isAdmin: false
       })
 
@@ -139,6 +151,18 @@ export function InviteForm() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="bio">Bio (optional)</Label>
+            <Textarea
+              id="bio"
+              placeholder="Leads KK Advisory with strategic direction and client stewardship."
+              value={formData.bio}
+              onChange={handleInputChange('bio')}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">Appears on the Team page.</p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="expertise">Expertise (comma-separated)</Label>
             <Textarea
               id="expertise"
@@ -146,6 +170,29 @@ export function InviteForm() {
               value={formData.expertise}
               onChange={handleInputChange('expertise')}
               rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="slackUrl">Slack URL (optional)</Label>
+            <Input
+              id="slackUrl"
+              placeholder="slack://user?team=YOUR_TEAM&id=USER_ID"
+              value={formData.slackUrl}
+              onChange={handleInputChange('slackUrl')}
+            />
+            <p className="text-xs text-muted-foreground">
+              Right-click user in Slack → Copy link to get the URL format
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="linkedinUrl">LinkedIn URL (optional)</Label>
+            <Input
+              id="linkedinUrl"
+              placeholder="https://linkedin.com/in/username"
+              value={formData.linkedinUrl}
+              onChange={handleInputChange('linkedinUrl')}
             />
           </div>
 

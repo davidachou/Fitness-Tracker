@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
                          user.user_metadata?.invite_role ||
                          user.invited_at
 
+    const invitedBio = hasInviteData ? user.user_metadata?.invite_bio : null
+    const bioFromMetadata = userMetadata?.bio
+
     // Check if profile already exists
     const adminSupabase = createAdminClient()
     const { data: existingProfile } = await adminSupabase
@@ -68,7 +71,8 @@ export async function POST(request: NextRequest) {
         role: isAdmin ? 'Administrator' : role,
         expertise: expertise,
         is_admin: isAdmin,
-        avatar_url: userMetadata?.avatar_url
+        avatar_url: userMetadata?.avatar_url,
+        bio: invitedBio || bioFromMetadata || null,
       })
       .select()
       .single()

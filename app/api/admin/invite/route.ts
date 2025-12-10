@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const { email, fullName, role, expertise, isAdmin: requestedAdmin } = await request.json()
+    const { email, fullName, role, expertise, slackUrl, linkedinUrl, bio, isAdmin: requestedAdmin } = await request.json()
 
     // Validate required fields
     if (!email || !fullName || !role) {
@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Send invite using Supabase admin API
+    const bioText = typeof bio === 'string' ? bio.trim() : ''
+
     const { data: inviteData, error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(email, {
       data: {
         // Store invite data in separate fields to avoid OAuth override
@@ -78,10 +80,12 @@ export async function POST(request: NextRequest) {
         invite_role: role,
         invite_expertise: Array.isArray(expertise) ? expertise : [],
         invite_is_admin: requestedAdmin === true,
+        invite_bio: bioText || null,
         // Also set regular fields (may be overridden by OAuth)
         full_name: fullName,
         role: role,
         expertise: Array.isArray(expertise) ? expertise : [],
+        bio: bioText || null,
       }
     })
 
@@ -108,6 +112,9 @@ export async function POST(request: NextRequest) {
             expertise: Array.isArray(expertise) ? expertise : [],
             is_admin: isAdmin,
             avatar_url: null,
+            slack: slackUrl || null,
+            linkedin: linkedinUrl || null,
+            bio: bioText || null,
           },
           { onConflict: 'id' },
         )

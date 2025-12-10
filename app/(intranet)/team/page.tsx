@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Mail, MessageCircle, CalendarClock, Linkedin } from "lucide-react";
+import { Mail, MessageCircle, Linkedin } from "lucide-react";
 
 type TeamMember = {
   id: string;
@@ -190,6 +190,22 @@ const localFallback: TeamMember[] = [
   },
 ];
 
+const normalizeKey = (name?: string | null) => {
+  const cleaned = (name ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+  if (!cleaned) return "";
+  const parts = cleaned.split(" ").filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]} ${parts[parts.length - 1]}`; // ignore middle names/initials
+  return parts[0] ?? "";
+};
+
+const cleanAvatarUrl = (value?: string | null) => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+  const lower = trimmed.toLowerCase();
+  if (lower === "null" || lower === "undefined") return "";
+  return trimmed;
+};
+
 export default function TeamDirectoryPage() {
   const [members, setMembers] = useState<TeamMember[]>(localFallback);
   const [query, setQuery] = useState("");
@@ -198,23 +214,47 @@ export default function TeamDirectoryPage() {
   useEffect(() => {
     const loadFromSupabase = async () => {
       const supabase = createClient();
-      const { data } = await supabase.from("team_members").select("*");
-      if (data && data.length > 0) {
-        setMembers(
-          data.map((tm) => ({
-            id: tm.id,
-            name: tm.name,
-            role: tm.role,
-            bio: tm.bio,
-            expertise: tm.expertise || [],
-            photo: tm.photo || `/team/${tm.name}.png`,
-            slack: tm.slack,
-            calendly: tm.calendly,
-            email: tm.email,
-            linkedin: tm.linkedin,
-          })),
-        );
-      }
+      // Query profiles directly - single source of truth
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, role, expertise, avatar_url, slack, linkedin, bio")
+        .order("full_name");
+
+      // Map fallback members for easy merge/dedupe
+      const fallbackByKey = new Map<string, TeamMember>();
+      localFallback.forEach((member) => {
+        fallbackByKey.set(normalizeKey(member.name), member);
+      });
+
+      // Merge supabase profiles with fallback data and photos
+      const dbMembers =
+        data?.map((profile) => {
+          const name = profile.full_name?.trim() || "Team Member";
+          const key = normalizeKey(name);
+          const fallback = fallbackByKey.get(key);
+          const avatar = cleanAvatarUrl(profile.avatar_url);
+
+          return {
+            id: profile.id,
+            name,
+            role: profile.role || fallback?.role || "Team Member",
+            bio: profile.bio || fallback?.bio || "",
+            expertise: (profile.expertise as string[] | null) || fallback?.expertise || [],
+            photo: avatar || fallback?.photo || (name ? `/team/${name}.png` : "/team/default.png"),
+            slack: profile.slack || fallback?.slack || "",
+            calendly: fallback?.calendly || "",
+            email: profile.email || fallback?.email || "",
+            linkedin: profile.linkedin || fallback?.linkedin || "",
+          } satisfies TeamMember;
+        }) ?? [];
+
+      // Add hardcoded fallback members that don't exist in profiles
+      const profileKeys = new Set(dbMembers.map((m) => normalizeKey(m.name)));
+      const fallbackMembers = localFallback.filter(
+        (fallback) => !profileKeys.has(normalizeKey(fallback.name)),
+      );
+
+      setMembers([...dbMembers, ...fallbackMembers]);
     };
     loadFromSupabase();
   }, []);
@@ -300,7 +340,7 @@ export default function TeamDirectoryPage() {
                     <div className="overflow-hidden rounded-2xl shadow-lg">
                       <Avatar className="h-[250px] w-[250px] rounded-none">
                         <AvatarImage src={member.photo} alt={member.name} className="object-cover" />
-                        <AvatarFallback className="text-4xl font-bold">
+                        <AvatarFallback className="text-4xl font-bold bg-muted text-foreground">
                           {member.name
                             .split(" ")
                             .map((n) => n[0])
@@ -331,7 +371,6 @@ export default function TeamDirectoryPage() {
                   </div>
                   <div className="flex flex-wrap justify-center sm:justify-start gap-2 text-sm">
                     <ActionLink href={member.slack} label="Slack" icon={<MessageCircle className="h-4 w-4" />} />
-                    <ActionLink href={member.calendly} label="Calendly" icon={<CalendarClock className="h-4 w-4" />} />
                     <ActionLink href={`mailto:${member.email}`} label="Email" icon={<Mail className="h-4 w-4" />} />
                     <ActionLink href={member.linkedin} label="LinkedIn" icon={<Linkedin className="h-4 w-4" />} />
                   </div>

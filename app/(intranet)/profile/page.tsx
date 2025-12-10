@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -16,12 +17,15 @@ type Profile = {
   role: string | null;
   expertise: string[];
   avatar_url?: string | null;
+  bio?: string | null;
 };
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [newSkill, setNewSkill] = useState("");
+  const [bioDraft, setBioDraft] = useState("");
+  const [savingBio, setSavingBio] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -45,7 +49,9 @@ export default function ProfilePage() {
           role: data.role,
           expertise: data.expertise || [],
           avatar_url: data.avatar_url,
+          bio: data.bio,
         });
+        setBioDraft(data.bio || "");
         setLoading(false);
         return;
       }
@@ -65,6 +71,7 @@ export default function ProfilePage() {
         const json = await resp.json();
         if (json.profile) {
           setProfile(json.profile);
+          setBioDraft(json.profile.bio || "");
         }
       }
 
@@ -96,6 +103,27 @@ export default function ProfilePage() {
     if (!profile) return;
     const updated = profile.expertise.filter((s) => s !== skill);
     await updateExpertise(updated);
+  };
+
+  const updateBio = async () => {
+    if (!profile) return;
+    setSavingBio(true);
+    const supabase = createClient();
+    const normalized = bioDraft.trim();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ bio: normalized || null })
+      .eq("id", profile.id);
+
+    setSavingBio(false);
+
+    if (error) {
+      toast.error("Failed to update bio");
+      return;
+    }
+
+    setProfile({ ...profile, bio: normalized || null });
+    toast.success("Bio updated");
   };
 
   if (loading) {
@@ -134,6 +162,28 @@ export default function ProfilePage() {
             <div className="text-sm text-muted-foreground">{profile.email}</div>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card className="border-white/10 bg-white/5 backdrop-blur">
+        <CardHeader>
+          <CardTitle>Bio</CardTitle>
+          <CardDescription>Shown on the Team tab. Keep it short and clear.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            placeholder="Leads KK Advisory with strategic direction and client stewardship."
+            value={bioDraft}
+            onChange={(e) => setBioDraft(e.target.value)}
+            className="border-white/20 bg-white/10 text-white placeholder:text-white/70"
+            rows={4}
+          />
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">Optional — leave blank to hide.</div>
+            <Button onClick={updateBio} disabled={savingBio}>
+              {savingBio ? "Saving…" : "Save bio"}
+            </Button>
+          </div>
+        </CardContent>
       </Card>
 
       <Card className="border-white/10 bg-white/5 backdrop-blur">

@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ExternalLink } from "lucide-react";
 
 const CALENDAR_SRC =
-  "https://calendar.google.com/calendar/embed?src=c_6292f587a9ed663aa9d990a979a28d750b2242c117472b23fc95c82bf8c896c7%40group.calendar.google.com&src=c_629ed7cf23c7ff4983c7a3254ba651f2560e3d208f007d490f10470dc906154a%40group.calendar.google.com&ctz=America%2FChicago";
+  "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FChicago&showPrint=0&title=Company%20Calendar&src=Y182MjllZDdjZjIzYzdmZjQ5ODNjN2EzMjU0YmE2NTFmMjU2MGUzZDIwOGYwMDdkNDkwZjEwNDcwZGM5MDYxNTRhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y182MjkyZjU4N2E5ZWQ2NjNhYTlkOTkwYTk3OWEyOGQ3NTBiMjI0MmMxMTc0NzJiMjNmYzk1YzgyYmY4Yzg5NmM3QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=ZW4udXNhI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23f6bf26&color=%23ad1457&color=%230b8043";
 
-export default function OOOPage() {
+export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2">

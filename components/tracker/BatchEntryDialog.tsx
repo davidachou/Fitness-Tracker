@@ -157,8 +157,8 @@ export function BatchEntryDialog({ open, onClose, projects, tasks, clients, onSu
                 <span>Actions</span>
               </div>
               {rows.map((row) => {
-                const projectOptions = projectsForClient(row.client);
-                const taskOptions = tasksForProject(row.projectId);
+                const projectOptions = projectsForClient(row.client).filter((p) => p.id !== UNASSIGNED_PROJECT_ID);
+                const taskOptions = tasksForProject(row.projectId).filter((t) => t.name !== "Unassigned");
                 return (
                   <div
                     key={row.id}

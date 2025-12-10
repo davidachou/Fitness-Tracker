@@ -47,18 +47,20 @@ type Profile = {
   role?: string | null;
 };
 
-const navItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/profile", label: "Profile", icon: UserCircle2 },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/knowledge", label: "The Brain", icon: BookOpen },
-  { href: "/projects", label: "Projects", icon: KanbanSquare },
-  { href: "/wins", label: "Wins & Blog", icon: Trophy },
+type NavStatus = "in-progress" | "placeholder";
+
+const navItems: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; status?: NavStatus }[] = [
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard, status: "placeholder" },
+  { href: "/profile", label: "Profile", icon: UserCircle2, status: "placeholder" },
+  { href: "/team", label: "Team", icon: Users, status: "in-progress" },
+  { href: "/knowledge", label: "The Brain", icon: BookOpen, status: "placeholder" },
+  { href: "/projects", label: "Projects", icon: KanbanSquare, status: "placeholder" },
+  { href: "/wins", label: "Wins & Blog", icon: Trophy, status: "placeholder" },
   { href: "/ooo", label: "OOO & Travel", icon: CalendarClock },
-  { href: "/quick-links", label: "Quick Links", icon: LinkIcon },
-  { href: "/feedback", label: "Feedback", icon: MessageSquare },
-  { href: "/booking", label: "Bookings", icon: CalendarDays },
-  { href: "/polls", label: "Polls", icon: BarChart4 },
+  { href: "/quick-links", label: "Quick Links", icon: LinkIcon, status: "placeholder" },
+  { href: "/feedback", label: "Feedback", icon: MessageSquare, status: "placeholder" },
+  { href: "/booking", label: "Bookings", icon: CalendarDays, status: "placeholder" },
+  { href: "/polls", label: "Polls", icon: BarChart4, status: "placeholder" },
   { href: "/tracker", label: "Time Tracker", icon: Timer },
 ];
 
@@ -287,7 +289,7 @@ export function AppShell({ user, children }: AppShellProps) {
 
   const renderNav = () => (
     <nav className="space-y-2">
-      {navItems.map(({ href, label, icon: Icon }) => {
+      {navItems.map(({ href, label, icon: Icon, status }) => {
         const active = pathname === href;
         const tourSlug = href.replace("/", "") || "home";
         return (
@@ -306,7 +308,20 @@ export function AppShell({ user, children }: AppShellProps) {
               }`}
             >
               <Icon className="h-4 w-4" />
-              <span>{label}</span>
+              <span className="flex items-center gap-2">
+                {label}
+                {status && (
+                  <span
+                    className={`rounded-full px-2 py-[2px] text-[10px] font-semibold leading-tight ${
+                      status === "in-progress"
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-200"
+                        : "bg-slate-500/15 text-slate-800 dark:text-slate-200"
+                    }`}
+                  >
+                    {status === "in-progress" ? "In progress" : "Placeholder"}
+                  </span>
+                )}
+              </span>
               {active && (
                 <motion.span
                   layoutId="activeNav"

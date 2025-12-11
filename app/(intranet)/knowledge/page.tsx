@@ -17,26 +17,45 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { sampleKnowledgeAssets } from "@/lib/sample-data";
 import { BookMarked, ExternalLink, Search } from "lucide-react";
 import Link from "next/link";
+import { Textarea } from "@/components/ui/textarea";
+import { Pencil, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 
-type Asset = (typeof sampleKnowledgeAssets)[number];
+type Asset = ((typeof sampleKnowledgeAssets)[number]) & { user_id?: string | null };
 
 export default function KnowledgeHubPage() {
   const [assets, setAssets] = useState<Asset[]>(sampleKnowledgeAssets);
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [form, setForm] = useState({ title: "", description: "", tags: "", link: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     const fetchAssets = async () => {
-      const { data } = await supabase
-        .from("knowledge_assets")
-        .select("*")
-        .order("last_updated", { ascending: false });
-      if (data && data.length > 0) {
-        setAssets(data as Asset[]);
+      const { data } = await supabase.from("knowledge_assets").select("*").order("last_updated", { ascending: false });
+      if (data && data.length > 0) setAssets(data as Asset[]);
+    };
+    const fetchProfile = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        setUserId(userData.user.id);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin, full_name")
+          .eq("id", userData.user.id)
+          .single();
+        setIsAdmin(Boolean(profile?.is_admin));
+        setUserName(profile?.full_name ?? null);
       }
     };
     fetchAssets();
+    fetchProfile();
   }, []);
 
   const tags = useMemo(() => {
@@ -63,6 +82,68 @@ export default function KnowledgeHubPage() {
     return res;
   }, [assets, query, activeTag]);
 
+  const resetForm = () => {
+    setForm({ title: "", description: "", tags: "", link: "" });
+    setEditingId(null);
+    setIsSaving(false);
+  };
+
+  const canEdit = (asset: Asset) => isAdmin || (!!userId && asset.user_id === userId);
+
+  const handleSubmit = async () => {
+    const supabase = createClient();
+    if (!form.title.trim() || !form.description.trim() || !form.link.trim()) {
+      return toast.error("Title, description, and URL are required");
+    }
+    setIsSaving(true);
+    const id = editingId ?? crypto.randomUUID();
+    const tags = form.tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const payload: Asset = {
+      id,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      tags,
+      last_updated: new Date().toISOString(),
+      owner: userName ?? "Unknown",
+      link: form.link.trim(),
+      user_id: assets.find((a) => a.id === id)?.user_id ?? userId ?? null,
+    } as Asset;
+
+    if (editingId) {
+      await supabase.from("knowledge_assets").update(payload).eq("id", id);
+      setAssets((prev) => prev.map((a) => (a.id === id ? payload : a)));
+      toast.success("Asset updated");
+    } else {
+      await supabase.from("knowledge_assets").insert(payload);
+      setAssets((prev) => [payload, ...prev]);
+      toast.success("Asset added");
+    }
+    resetForm();
+  };
+
+  const startEdit = (asset: Asset) => {
+    setEditingId(asset.id);
+    setForm({
+      title: asset.title,
+      description: asset.description,
+      tags: asset.tags.join(", "),
+      link: asset.link,
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    setIsDeleting(id);
+    const supabase = createClient();
+    await supabase.from("knowledge_assets").delete().eq("id", id);
+    setAssets((prev) => prev.filter((a) => a.id !== id));
+    if (editingId === id) resetForm();
+    setIsDeleting(null);
+    toast.success("Asset deleted");
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2">
@@ -72,6 +153,51 @@ export default function KnowledgeHubPage() {
           Search across high-value assets. Tags glow to guide curation. Powered by Supabase full-text.
         </p>
       </header>
+
+      {isAdmin && (
+        <Card className="border-white/10 bg-white/5 backdrop-blur">
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit asset" : "Add asset"}</CardTitle>
+            <CardDescription>Admins can add, edit, or delete assets.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              placeholder="Title"
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
+            />
+            <Textarea
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
+            />
+            <Input
+              placeholder="Tags (comma separated)"
+              value={form.tags}
+              onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
+            />
+            <Input
+              placeholder="Asset URL"
+              value={form.link}
+              onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleSubmit} disabled={isSaving} className="gap-2">
+                {editingId ? "Save changes" : "Add asset"}
+              </Button>
+              {editingId && (
+                <Button variant="ghost" onClick={resetForm} className="gap-2">
+                  <X className="h-4 w-4" /> Cancel
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/90 p-4 backdrop-blur dark:border-white/10 dark:bg-white/5">
         <div className="relative">
@@ -119,11 +245,28 @@ export default function KnowledgeHubPage() {
             >
               <Card className="h-full overflow-hidden border-border bg-card shadow-lg backdrop-blur hover:-translate-y-1 hover:shadow-primary/20 dark:border-white/10 dark:bg-white/5">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <BookMarked className="h-5 w-5 text-primary" />
-                    {asset.title}
+                  <CardTitle className="flex items-start gap-2 text-lg">
+                    <BookMarked className="h-5 w-5 shrink-0 text-primary" />
+                    <span className="flex-1 break-words">{asset.title}</span>
                   </CardTitle>
                   <CardDescription className="line-clamp-2">{asset.description}</CardDescription>
+                  {canEdit(asset) && (
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => startEdit(asset)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(asset.id)}
+                        disabled={isDeleting === asset.id}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {isDeleting === asset.id ? "Deleting..." : "Delete"}
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">

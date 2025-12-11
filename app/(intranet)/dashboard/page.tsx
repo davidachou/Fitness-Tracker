@@ -14,15 +14,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import {
-  sampleQuickLinks,
-  sampleProjects,
-  sampleTeamMembers,
-  sampleWins,
-} from "@/lib/sample-data";
-import { ArrowUpRight, Flame, Link2, Rocket, Wand2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { sampleQuickLinks, sampleProjects, sampleTeamMembers, sampleWins, sampleFeedback } from "@/lib/sample-data";
+import { ArrowUpRight, Flame, Link2, MessageSquare, Trophy, KanbanSquare, Users, X } from "lucide-react";
+import { toast } from "sonner";
 
 type QuickLink = (typeof sampleQuickLinks)[number];
+type PollOption = { label: string; votes: number | null };
+type PollWithOptions = { id: string; question: string; created_at: string; poll_options?: PollOption[] | null };
+type Announcement = { id: string; message: string; created_at: string; user_id?: string | null };
 
 export default function DashboardPage() {
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(sampleQuickLinks);
@@ -31,7 +31,28 @@ export default function DashboardPage() {
     team: sampleTeamMembers.length,
     projects: sampleProjects.length,
     wins: sampleWins.length,
+    feedbackClient: sampleFeedback.filter((f) => f.kind === "client").length,
+    feedbackEmployee: sampleFeedback.filter((f) => f.kind === "employee").length,
   });
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementForm, setAnnouncementForm] = useState({ message: "", id: "" });
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [announcementDeleting, setAnnouncementDeleting] = useState<string | null>(null);
+  const [latestPoll, setLatestPoll] = useState<PollWithOptions | null>(null);
+
+  const fetchAnnouncements = async () => {
+    const supabase = createClient();
+    try {
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setAnnouncements(data ?? []);
+    } catch (err) {
+      console.warn("Announcements fetch failed", err);
+    }
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -52,18 +73,40 @@ export default function DashboardPage() {
     };
 
     const loadStats = async () => {
-      const [{ count: teamCount }, { count: projCount }, { count: winCount }] =
-        await Promise.all([
+      try {
+        const [
+          { count: teamCount },
+          { count: winCount },
+          { count: feedbackClient },
+          { count: feedbackEmployee },
+          { data: clientContribs },
+        ] = await Promise.all([
           supabase.from("team_members").select("*", { count: "exact", head: true }),
-          supabase.from("projects").select("*", { count: "exact", head: true }),
           supabase.from("wins_posts").select("*", { count: "exact", head: true }),
+          supabase.from("feedback_entries").select("*", { count: "exact", head: true }).eq("kind", "client"),
+          supabase.from("feedback_entries").select("*", { count: "exact", head: true }).eq("kind", "employee"),
+          supabase.rpc("client_contributors"),
         ]);
 
-      setStats((prev) => ({
-        team: teamCount ?? prev.team,
-        projects: projCount ?? prev.projects,
-        wins: winCount ?? prev.wins,
-      }));
+        const activeClients = new Set<string>();
+        (clientContribs as { client_id: string; archived: boolean | null }[] | null)?.forEach((row) => {
+          if (!row) return;
+          const isArchived = Boolean(row.archived);
+          if (!isArchived && row.client_id) {
+            activeClients.add(row.client_id);
+          }
+        });
+
+        setStats((prev) => ({
+          team: teamCount ?? prev.team,
+          projects: activeClients.size || prev.projects,
+          wins: winCount ?? prev.wins,
+          feedbackClient: feedbackClient ?? prev.feedbackClient,
+          feedbackEmployee: feedbackEmployee ?? prev.feedbackEmployee,
+        }));
+      } catch (error) {
+        console.warn("loadStats failed", error);
+      }
     };
 
     const loadAdminFlag = async () => {
@@ -77,10 +120,56 @@ export default function DashboardPage() {
       }
     };
 
+    const loadLatestPoll = async () => {
+      const { data } = await supabase
+        .from("polls")
+        .select("id, question, created_at, poll_options(label, votes)")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (data) setLatestPoll(data as unknown as PollWithOptions);
+    };
+
     loadQuickLinks();
     loadStats();
     loadAdminFlag();
+    fetchAnnouncements();
+    loadLatestPoll();
   }, []);
+
+  const saveAnnouncement = async () => {
+    const supabase = createClient();
+    if (!announcementForm.message.trim()) return;
+    setAnnouncementSaving(true);
+    const id = announcementForm.id || crypto.randomUUID();
+    const payload = { id, message: announcementForm.message.trim() };
+    if (announcementForm.id) {
+      await supabase.from("announcements").update(payload).eq("id", id);
+      setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, ...payload } : a)));
+      toast.success("Announcement updated");
+    } else {
+      const { data } = await supabase.from("announcements").insert(payload).select().single();
+      setAnnouncements((prev) => [ (data as Announcement) ?? payload, ...prev ]);
+      toast.success("Announcement added");
+    }
+    setAnnouncementForm({ message: "", id: "" });
+    setAnnouncementSaving(false);
+    fetchAnnouncements();
+  };
+
+  const editAnnouncement = (a: Announcement) => {
+    setAnnouncementForm({ message: a.message, id: a.id });
+  };
+
+  const deleteAnnouncement = async (id: string) => {
+    const supabase = createClient();
+    setAnnouncementDeleting(id);
+    await supabase.from("announcements").delete().eq("id", id);
+    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+    setAnnouncementDeleting(null);
+    toast.success("Announcement deleted");
+    fetchAnnouncements();
+  };
 
   return (
     <div className="space-y-6">
@@ -102,31 +191,24 @@ export default function DashboardPage() {
             Everything the team needs, in one focused workspace.
           </h1>
           <p className="text-lg text-muted-foreground dark:text-white/80">
-            Fast access to people, knowledge, projects, wins, travel, polls, and bookings—
-            secured with Google OAuth and powered by Supabase.
+            Fast access to people, knowledge, projects, wins, polls, feedback, and bookings—secured with Google OAuth and powered by Supabase.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
-            <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-white dark:text-slate-900">
+            <Button asChild size="lg">
               <Link href="/team">
                 Meet the team <ArrowUpRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-border bg-transparent text-foreground hover:bg-muted dark:border-white/40 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
-              asChild
-            >
-              <Link href="/knowledge">Explore knowledge hub</Link>
+            <Button asChild size="lg">
+              <Link href="/knowledge">
+                Explore knowledge hub <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
             {isAdmin && (
-              <Button
-                variant="secondary"
-                size="lg"
-                className="border-border bg-accent/40 text-foreground hover:bg-accent/50 dark:bg-white/10 dark:text-white"
-                asChild
-              >
-                <Link href="/admin/invite">Invite teammates</Link>
+              <Button asChild size="lg">
+                <Link href="/admin/invite">
+                  Invite teammates <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             )}
           </div>
@@ -136,18 +218,12 @@ export default function DashboardPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          title="Team heavy-hitters"
-          value={stats.team}
-          accent="from-sky-300/60 via-teal-300/50 to-lime-300/60 dark:from-red-600/60 dark:to-orange-500/60"
-          href="/team"
-          dataTour="tour-stat-team"
-        />
-        <StatCard
           title="Active projects"
           value={stats.projects}
           accent="from-teal-300/60 via-sky-200/60 to-lime-200/60 dark:from-amber-500/60 dark:to-orange-500/60"
           href="/projects"
           dataTour="tour-stat-projects"
+          icon={KanbanSquare}
         />
         <StatCard
           title="Wins logged"
@@ -155,6 +231,23 @@ export default function DashboardPage() {
           accent="from-lime-300/60 via-teal-200/60 to-sky-200/60 dark:from-rose-500/60 dark:to-red-600/60"
           href="/wins"
           dataTour="tour-stat-wins"
+          icon={Trophy}
+        />
+        <StatCard
+          title="Client feedback"
+          value={stats.feedbackClient}
+          accent="from-sky-300/60 via-indigo-300/50 to-blue-300/60 dark:from-purple-500/60 dark:to-blue-500/60"
+          href="/feedback"
+          dataTour="tour-stat-feedback-client"
+          icon={MessageSquare}
+        />
+        <StatCard
+          title="Employee feedback"
+          value={stats.feedbackEmployee}
+          accent="from-blue-300/60 via-cyan-300/50 to-teal-300/60 dark:from-blue-500/60 dark:to-teal-500/60"
+          href="/feedback"
+          dataTour="tour-stat-feedback-employee"
+          icon={Users}
         />
       </section>
 
@@ -202,35 +295,79 @@ export default function DashboardPage() {
 
         <Card className="border-border bg-card/90 text-foreground backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-white" data-tour="tour-momentum">
           <CardHeader>
-            <CardTitle>Momentum</CardTitle>
-            <CardDescription>Fresh activity from the workspace</CardDescription>
+            <CardTitle>Latest poll</CardTitle>
+            <CardDescription>{latestPoll ? latestPoll.question : "No polls yet"}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { label: "Team directory completeness", value: 88 },
-              { label: "Knowledge hub freshness", value: 74 },
-              { label: "Project milestone confidence", value: 63 },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center justify-between text-sm font-medium">
-                  <span>{item.label}</span>
-                  <span className="text-muted-foreground">{item.value}%</span>
+          <CardContent className="space-y-3">
+            {latestPoll?.poll_options?.length ? (
+              latestPoll.poll_options.map((opt, idx) => (
+                <div key={`${opt.label}-${idx}`}>
+                  <div className="flex items-center justify-between text-sm font-medium">
+                    <span>{opt.label}</span>
+                    <span className="text-muted-foreground">{opt.votes ?? 0} votes</span>
+                  </div>
+                  <Progress value={Math.min(100, (opt.votes ?? 0) * 10)} className="mt-1" />
                 </div>
-                <Progress value={item.value} className="mt-2" />
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              className="w-full border-primary/40 text-primary"
-              asChild
-            >
-              <Link href="/knowledge">
-                Go to The Brain <ArrowUpRight className="ml-2 h-4 w-4" />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Create a poll to see it here.</p>
+            )}
+            <Button variant="outline" className="w-full border-primary/40 text-primary" asChild>
+              <Link href="/polls">
+                Go to Polls <ArrowUpRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardContent>
         </Card>
       </section>
+
+      {isAdmin && (
+        <Card className="border-border bg-card text-foreground backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-white">
+          <CardHeader>
+            <CardTitle>Manage announcements</CardTitle>
+            <CardDescription>Add, edit, or delete announcement strings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              placeholder="Announcement text"
+              value={announcementForm.message}
+              onChange={(e) => setAnnouncementForm((f) => ({ ...f, message: e.target.value }))}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
+            />
+            <div className="flex gap-2">
+              <Button onClick={saveAnnouncement} disabled={announcementSaving}>
+                {announcementForm.id ? "Save announcement" : "Add announcement"}
+              </Button>
+              {announcementForm.id && (
+                <Button variant="ghost" onClick={() => setAnnouncementForm({ message: "", id: "" })}>
+                  <X className="h-4 w-4" /> Cancel
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2">
+              {announcements.map((a) => (
+                <div key={a.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm dark:border-white/20">
+                  <span className="text-muted-foreground">{a.message}</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => editAnnouncement(a)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteAnnouncement(a.id)}
+                      disabled={announcementDeleting === a.id}
+                    >
+                      {announcementDeleting === a.id ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {announcements.length === 0 && <p className="text-sm text-muted-foreground">No announcements yet.</p>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -241,12 +378,14 @@ function StatCard({
   accent,
   href,
   dataTour,
+  icon: Icon,
 }: {
   title: string;
   value: number;
   accent: string;
   href: string;
   dataTour?: string;
+  icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <Link href={href} className="group" data-tour={dataTour}>
@@ -254,13 +393,13 @@ function StatCard({
         <div className={`absolute inset-0 opacity-60 blur-2xl bg-gradient-to-br ${accent}`} />
         <CardHeader>
           <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-[0.2em]">
-            <Wand2 className="h-4 w-4 text-primary" /> {title}
+            <Icon className="h-4 w-4 text-primary" /> {title}
           </CardDescription>
           <CardTitle className="text-3xl font-black">{value}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
           <span>Tap to dive in</span>
-          <Rocket className="h-4 w-4 text-primary transition group-hover:translate-x-1" />
+          <ArrowUpRight className="h-4 w-4 text-primary transition group-hover:translate-x-1" />
         </CardContent>
       </Card>
     </Link>

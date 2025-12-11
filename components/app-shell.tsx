@@ -22,6 +22,7 @@ import {
   Sparkles,
   UserCircle2,
   Timer,
+  Megaphone,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { toast } from "sonner";
 import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
+import { Card, CardContent } from "@/components/ui/card";
 import { TimerBadge } from "@/components/tracker/TimerBadge";
 
 type AppShellProps = {
@@ -48,17 +50,18 @@ type Profile = {
 };
 
 type NavStatus = "in-progress" | "placeholder";
+type Announcement = { id: string; message: string; created_at: string; user_id?: string | null };
 
 const navItems: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; status?: NavStatus }[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard, status: "placeholder" },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/profile", label: "Profile", icon: UserCircle2 },
   { href: "/team", label: "Team", icon: Users },
-  { href: "/knowledge", label: "The Brain", icon: BookOpen, status: "placeholder" },
+  { href: "/knowledge", label: "The Brain", icon: BookOpen },
   { href: "/projects", label: "Projects", icon: KanbanSquare },
-  { href: "/wins", label: "Wins & Blog", icon: Trophy, status: "placeholder" },
+  { href: "/wins", label: "Wins & Blog", icon: Trophy },
   { href: "/calendar", label: "Calendar", icon: CalendarClock },
   { href: "/quick-links", label: "Quick Links", icon: LinkIcon },
-  { href: "/feedback", label: "Feedback", icon: MessageSquare, status: "placeholder" },
+  { href: "/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/booking", label: "Bookings", icon: CalendarDays, status: "placeholder" },
   { href: "/polls", label: "Polls", icon: BarChart4 },
   { href: "/tracker", label: "Time Tracker", icon: Timer },
@@ -70,107 +73,108 @@ type TourStep = {
   body: string;
   selector: string;
   href: string;
-  advanceKey: string;
 };
 
 const TOUR_STORAGE_KEY = "app-tour-completed";
 
-const navTourSteps: TourStep[] = [
+const tourSteps: TourStep[] = [
+  {
+    id: "tour-announcements",
+    title: "Announcements",
+    body: "Ticker for org updates. Use the arrows to skim updates; it’s visible everywhere.",
+    selector: "[data-tour='announcement-bar']",
+    href: "/dashboard",
+  },
   {
     id: "tour-theme",
     title: "Light / Dark",
-    body: "Switch themes anytime. Click to toggle and move to the next stop.",
+    body: "Toggle themes anytime; colors stay consistent across the app.",
     selector: "[data-tour-nav='theme']",
-    href: "#theme",
-    advanceKey: "theme",
+    href: "/dashboard",
   },
   {
-    id: "tour-nav-home",
+    id: "tour-home",
     title: "Home",
-    body: "Snapshot of the workspace and quick actions.",
+    body: "Dashboard with quick actions, stats, quick links, and the latest poll.",
     selector: "[data-tour-nav='dashboard']",
     href: "/dashboard",
-    advanceKey: "dashboard",
   },
   {
-    id: "tour-nav-profile",
-    title: "Profile",
-    body: "Update your details so teammates know how to reach you.",
+    id: "tour-profile",
+    title: "Your profile",
+    body: "Update photo, bio, and expertise—these power the Team directory.",
     selector: "[data-tour-nav='profile']",
     href: "/profile",
-    advanceKey: "profile",
   },
   {
-    id: "tour-nav-team",
-    title: "Team",
-    body: "Browse the team directory and find the right expertise.",
+    id: "tour-team",
+    title: "Team directory",
+    body: "Search by name or expertise and open profiles for contact links.",
     selector: "[data-tour-nav='team']",
     href: "/team",
-    advanceKey: "team",
   },
   {
-    id: "tour-nav-knowledge",
-    title: "Knowledge Hub",
-    body: "Search institutional knowledge and docs.",
+    id: "tour-knowledge",
+    title: "Knowledge hub",
+    body: "Search tagged assets; admins can add or edit important links.",
     selector: "[data-tour-nav='knowledge']",
     href: "/knowledge",
-    advanceKey: "knowledge",
   },
   {
-    id: "tour-nav-projects",
+    id: "tour-projects",
     title: "Projects",
-    body: "Track projects, statuses, and milestones.",
+    body: "See which teammates are staffed for each client based on time logs.",
     selector: "[data-tour-nav='projects']",
     href: "/projects",
-    advanceKey: "projects",
   },
   {
-    id: "tour-nav-wins",
-    title: "Wins & Blog",
-    body: "Share and celebrate wins and announcements.",
+    id: "tour-wins",
+    title: "Wins & blog",
+    body: "Publish wins or embed LinkedIn posts; admins can edit anything.",
     selector: "[data-tour-nav='wins']",
     href: "/wins",
-    advanceKey: "wins",
   },
   {
-    id: "tour-nav-calendar",
+    id: "tour-calendar",
     title: "Calendar",
-    body: "View company calendar and events.",
+    body: "Shared Google Calendar for OOO, travel, and key dates.",
     selector: "[data-tour-nav='calendar']",
     href: "/calendar",
-    advanceKey: "calendar",
   },
   {
-    id: "tour-nav-quick-links",
+    id: "tour-quick-links",
     title: "Quick Links",
-    body: "Jump to frequent destinations fast.",
+    body: "Launchpad of daily tools; admins can add or edit icons and URLs.",
     selector: "[data-tour-nav='quick-links']",
     href: "/quick-links",
-    advanceKey: "quick-links",
   },
   {
-    id: "tour-nav-feedback",
-    title: "Feedback",
-    body: "Send feedback and ideas to the team.",
+    id: "tour-feedback",
+    title: "Feedback inbox",
+    body: "Client vs employee channels; submit, edit, or delete your own (admins can edit all).",
     selector: "[data-tour-nav='feedback']",
     href: "/feedback",
-    advanceKey: "feedback",
   },
   {
-    id: "tour-nav-booking",
-    title: "Bookings",
-    body: "Reserve rooms or equipment.",
+    id: "tour-booking",
+    title: "Bookings (placeholder)",
+    body: "This tab is a placeholder (we could swap in anything—even lunch menus). Share what you want built here.",
     selector: "[data-tour-nav='booking']",
     href: "/booking",
-    advanceKey: "booking",
   },
   {
-    id: "tour-nav-polls",
+    id: "tour-polls",
     title: "Polls",
-    body: "Vote on quick decisions and surveys.",
+    body: "Create and vote; results show live on the dashboard.",
     selector: "[data-tour-nav='polls']",
     href: "/polls",
-    advanceKey: "polls",
+  },
+  {
+    id: "tour-tracker",
+    title: "Time tracker",
+    body: "Start timers, log entries, manage tasks, and run reports by client.",
+    selector: "[data-tour-nav='tracker']",
+    href: "/tracker",
   },
 ];
 
@@ -179,14 +183,17 @@ export function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
 
-  const activeTourStep = isTourActive ? navTourSteps[tourIndex] : null;
+  const activeTourStep = isTourActive ? tourSteps[tourIndex] : null;
 
   const startTour = () => {
     setTourIndex(0);
     setIsTourActive(true);
+    setIsMobileNavOpen(false);
   };
 
   const finishTour = () => {
@@ -199,13 +206,10 @@ export function AppShell({ user, children }: AppShellProps) {
     }
   };
 
-  const advanceTour = (key: string) => {
-    if (!isTourActive) return;
+  const nextTourStep = () => {
     setTourIndex((i) => {
-      const currentStep = navTourSteps[i];
-      if (!currentStep || currentStep.advanceKey !== key) return i;
       const next = i + 1;
-      if (next >= navTourSteps.length) {
+      if (next >= tourSteps.length) {
         finishTour();
         return i;
       }
@@ -213,11 +217,21 @@ export function AppShell({ user, children }: AppShellProps) {
     });
   };
 
-  const handleNavClick = (href: string) => {
-    setIsMobileNavOpen(false);
-    const tourKey = href.replace("/", "") || "home";
-    advanceTour(tourKey);
+  const prevTourStep = () => {
+    setTourIndex((i) => Math.max(0, i - 1));
   };
+
+  const handleNavClick = () => {
+    setIsMobileNavOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isTourActive) return;
+    const step = tourSteps[tourIndex];
+    if (step?.href && step.href !== pathname) {
+      router.push(step.href);
+    }
+  }, [isTourActive, tourIndex, pathname, router]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -242,6 +256,33 @@ export function AppShell({ user, children }: AppShellProps) {
   }, [user.id]);
 
   useEffect(() => {
+    const loadAnnouncements = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from("announcements").select("*").order("created_at", { ascending: false });
+      if (data) setAnnouncements(data as Announcement[]);
+    };
+    loadAnnouncements();
+  }, []);
+
+  useEffect(() => {
+    if (announcements.length === 0) return;
+    const id = setInterval(() => {
+      setAnnouncementIndex((idx) => (idx + 1) % announcements.length);
+    }, 18000);
+    return () => clearInterval(id);
+  }, [announcements]);
+
+  const nextAnnouncement = () => {
+    if (announcements.length === 0) return;
+    setAnnouncementIndex((idx) => (idx + 1) % announcements.length);
+  };
+
+  const prevAnnouncement = () => {
+    if (announcements.length === 0) return;
+    setAnnouncementIndex((idx) => (idx - 1 + announcements.length) % announcements.length);
+  };
+
+  useEffect(() => {
     const endTour = () => {
       setIsTourActive(false);
       setTourIndex(0);
@@ -256,19 +297,7 @@ export function AppShell({ user, children }: AppShellProps) {
     };
   }, []);
 
-  useEffect(() => {
-    try {
-      const completed = localStorage.getItem(TOUR_STORAGE_KEY) === "true";
-      if (!completed) {
-        const id = window.setTimeout(() => {
-          startTour();
-        }, 400);
-        return () => window.clearTimeout(id);
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
+  // Tour is now fully optional; no auto-start for first-time visitors.
 
   const initials = useMemo(() => {
     const name = profile?.full_name || user.email || "User";
@@ -296,7 +325,7 @@ export function AppShell({ user, children }: AppShellProps) {
           <Link
             key={href}
             href={href}
-            onClick={() => handleNavClick(href)}
+            onClick={handleNavClick}
             data-tour-nav={tourSlug}
           >
             <motion.div
@@ -336,13 +365,52 @@ export function AppShell({ user, children }: AppShellProps) {
     </nav>
   );
 
+  const BANNER_HEIGHT = 30;
+  const CONTENT_OFFSET = 40; // push content slightly below the banner
+
   return (
     <RealtimeTimerProvider userId={user.id}>
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground" style={{ paddingTop: BANNER_HEIGHT + CONTENT_OFFSET }}>
+        <div className="fixed inset-x-0 top-0 z-50" style={{ height: BANNER_HEIGHT }}>
+          <Card
+            className="h-full rounded-none border-0 bg-white text-primary shadow-md dark:bg-black dark:text-primary"
+            data-tour="announcement-bar"
+          >
+            <CardContent className="flex h-full items-center gap-2 overflow-hidden px-3 py-0">
+              <Megaphone className="h-4 w-4 shrink-0 text-primary" />
+              <div className="relative flex flex-1 items-center overflow-hidden">
+                <motion.div
+                  key={announcements[announcementIndex]?.id ?? "fallback"}
+                  initial={{ x: "100%" }}
+                  animate={{ x: ["100%", "-100%"] }}
+                  transition={{ duration: 30, ease: "linear", repeat: Infinity, repeatType: "loop" }}
+                  className="inline-block whitespace-nowrap text-xs sm:text-sm leading-[1.1]"
+                  style={{ minWidth: "100%", willChange: "transform" }}
+                >
+                  {announcements[announcementIndex]?.message ?? "No announcements yet."}
+                </motion.div>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={prevAnnouncement} disabled={announcements.length === 0}>
+                  ‹
+                </Button>
+                <Button variant="ghost" size="icon" onClick={nextAnnouncement} disabled={announcements.length === 0}>
+                  ›
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
         <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsla(var(--primary),0.16),transparent_32%),radial-gradient(circle_at_80%_0%,hsla(var(--accent),0.18),transparent_28%),radial-gradient(circle_at_60%_80%,hsla(var(--primary),0.14),transparent_35%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(239,68,68,0.14),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(249,115,22,0.14),transparent_28%),radial-gradient(circle_at_60%_80%,rgba(59,7,11,0.35),transparent_35%)]" />
-        <div className="relative z-10 mx-auto flex max-w-7xl gap-6 px-4 py-6 lg:px-8">
-          <aside className="hidden w-64 shrink-0 lg:block">
-            <div className="sticky top-6 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-2xl backdrop-blur-xl">
+        <div className="relative z-10 mx-auto mt-6 flex max-w-7xl gap-6 px-4 pb-6 lg:mt-8 lg:pl-[320px] lg:pr-8 lg:pb-8">
+          <aside className="hidden lg:block">
+            <div
+              className="fixed w-64 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-2xl backdrop-blur-xl"
+              style={{
+                top: BANNER_HEIGHT + CONTENT_OFFSET,
+                left: "calc((100vw - 80rem) / 2 + 2rem)",
+              }}
+            >
               <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/10 to-accent/10 p-3">
                 <Avatar className="border border-white/20 shadow-md">
                   <AvatarImage src={profile?.avatar_url || undefined} />
@@ -399,7 +467,6 @@ export function AppShell({ user, children }: AppShellProps) {
                 </div>
                 <div
                   data-tour-nav="theme"
-                  onClick={() => advanceTour("theme")}
                   className="flex items-center"
                 >
                   <ThemeSwitcher />
@@ -438,7 +505,9 @@ export function AppShell({ user, children }: AppShellProps) {
 
           <main className="relative rounded-3xl border border-white/5 bg-white/5 p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
             <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-white/5 via-white/0 to-white/5" />
-            {children}
+            <div className="space-y-6">
+              {children}
+            </div>
           </main>
         </div>
       </div>
@@ -446,8 +515,12 @@ export function AppShell({ user, children }: AppShellProps) {
           <TourOverlay
             step={activeTourStep}
             stepIndex={tourIndex}
-            totalSteps={navTourSteps.length}
+            totalSteps={tourSteps.length}
             onClose={finishTour}
+            onNext={nextTourStep}
+            onPrev={prevTourStep}
+            isLast={tourIndex === tourSteps.length - 1}
+            hasPrev={tourIndex > 0}
           />
         )}
       </div>
@@ -460,11 +533,19 @@ function TourOverlay({
   stepIndex,
   totalSteps,
   onClose,
+  onNext,
+  onPrev,
+  isLast,
+  hasPrev,
 }: {
   step: TourStep;
   stepIndex: number;
   totalSteps: number;
   onClose: () => void;
+  onNext: () => void;
+  onPrev: () => void;
+  isLast: boolean;
+  hasPrev: boolean;
 }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [canPortal, setCanPortal] = useState(false);
@@ -490,18 +571,20 @@ function TourOverlay({
   }, [step]);
 
   useLayoutEffect(() => {
-    if (!rect) return;
+    if (!step) return;
     const padding = 16;
     const overlayHeight = popoverRef.current?.offsetHeight ?? 0;
     const overlayWidth = popoverRef.current?.offsetWidth ?? 0;
     const viewportH = window.innerHeight;
     const viewportW = window.innerWidth;
 
-    let nextTop = rect.bottom + 12;
-    let nextLeft = rect.left;
+    const hasTarget = rect && rect.width > 0 && rect.height > 0;
+
+    let nextTop = hasTarget ? rect.bottom + 12 : viewportH / 2 - (overlayHeight || 0) / 2;
+    let nextLeft = hasTarget ? rect.left : viewportW / 2 - (overlayWidth || 0) / 2;
 
     if (overlayHeight && nextTop + overlayHeight > viewportH - padding) {
-      nextTop = Math.max(padding, rect.top - overlayHeight - 12);
+      nextTop = Math.max(padding, (hasTarget ? rect.top : nextTop) - overlayHeight - 12);
     }
 
     if (overlayWidth) {
@@ -511,21 +594,24 @@ function TourOverlay({
     setPopoverPos({ top: nextTop, left: nextLeft });
   }, [rect, step]);
 
-  if (!step || !rect) return null;
+  if (!step) return null;
 
   const holePadding = 12;
+  const hasTarget = rect && rect.width > 0 && rect.height > 0;
 
   const overlay = (
     <div className="pointer-events-none fixed inset-0 z-40">
-      <div
-        className="absolute pointer-events-none rounded-xl border-2 border-primary/60 bg-primary/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]"
-        style={{
-          top: rect.top - holePadding,
-          left: rect.left - holePadding,
-          width: rect.width + holePadding * 2,
-          height: rect.height + holePadding * 2,
-        }}
-      />
+      {hasTarget && rect && (
+        <div
+          className="absolute pointer-events-none rounded-xl border-2 border-primary/60 bg-primary/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]"
+          style={{
+            top: rect.top - holePadding,
+            left: rect.left - holePadding,
+            width: rect.width + holePadding * 2,
+            height: rect.height + holePadding * 2,
+          }}
+        />
+      )}
       <div
         className="pointer-events-auto absolute max-w-sm rounded-xl border border-border bg-card p-4 shadow-2xl dark:border-white/10 dark:bg-neutral-900"
         ref={popoverRef}
@@ -547,14 +633,25 @@ function TourOverlay({
           </button>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Click the highlighted tab to continue.</span>
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-3 py-1 text-foreground hover:bg-muted"
-          >
-            Skip tour
-          </button>
+        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span>{hasTarget ? "Highlighted area" : "Step context"} — use Next to continue.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onPrev}
+              disabled={!hasPrev}
+              className="rounded-md border border-border px-3 py-1 text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              Back
+            </button>
+            <button
+              onClick={isLast ? onClose : onNext}
+              className="rounded-md bg-primary px-3 py-1 text-primary-foreground hover:bg-primary/90"
+            >
+              {isLast ? "Finish" : "Next"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

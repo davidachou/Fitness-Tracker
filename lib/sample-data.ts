@@ -183,10 +183,23 @@ export const sampleQuickLinks = [
 export const sampleFeedback = [
   {
     id: "fb-1",
+    kind: "client" as const,
     message: "Team was responsive and pragmatic. Loved the concise updates.",
-    client_name: null,
-    client_email: null,
+    client_org: "Helio Bank",
+    client_person: "Jordan @ Helio",
+    submitter_name: "Alex Rivera",
+    is_anonymous: false,
     created_at: "2024-11-01T10:00:00Z",
+  },
+  {
+    id: "fb-2",
+    kind: "employee" as const,
+    message: "Would love clearer release notes each Friday.",
+    client_org: null,
+    client_person: null,
+    submitter_name: "Anonymous",
+    is_anonymous: true,
+    created_at: "2024-11-03T09:00:00Z",
   },
 ];
 

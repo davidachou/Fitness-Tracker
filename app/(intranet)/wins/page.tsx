@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sampleWins } from "@/lib/sample-data";
 import { toast } from "sonner";
@@ -50,11 +49,12 @@ export default function WinsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isEditorEmpty, setIsEditorEmpty] = useState(true);
   const editor = useEditor({
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: true }),
-      Placeholder.configure({ placeholder: "Share the win, the lesson, or the celebration..." }),
+      Placeholder.configure({ placeholder: "Share the win, the lesson, or the celebration…" }),
     ],
     content: "",
   });
@@ -84,6 +84,17 @@ export default function WinsPage() {
     fetchPosts();
     fetchProfile();
   }, []);
+
+  // Track editor emptiness for placeholder overlay
+  useEffect(() => {
+    if (!editor) return;
+    const updateEmpty = () => setIsEditorEmpty(editor.isEmpty);
+    updateEmpty();
+    editor.on("update", updateEmpty);
+    return () => {
+      editor.off("update", updateEmpty);
+    };
+  }, [editor]);
 
   const handleSubmit = async () => {
     const supabase = createClient();
@@ -259,7 +270,7 @@ export default function WinsPage() {
             className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
           />
 
-          <Textarea
+          <Input
             placeholder="Image URL (optional)"
             value={image}
             onChange={(e) => setImage(e.target.value)}
@@ -274,7 +285,12 @@ export default function WinsPage() {
               className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
             />
           ) : (
-            <div className="rounded-xl border border-white/15 bg-white/5">
+            <div className="relative rounded-xl border border-border bg-background text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white">
+              {isEditorEmpty && (
+                <span className="pointer-events-none absolute left-3 top-3 text-sm text-muted-foreground">
+                  Share the win, the lesson, or the celebration…
+                </span>
+              )}
               <EditorContent editor={editor} className="prose prose-invert max-w-none p-3 text-sm" />
             </div>
           )}

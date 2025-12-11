@@ -161,7 +161,7 @@ export default function TrackerPage() {
         const clientRelFromDirect = row.clients;
 
         const normalizeClient = (
-          rel:
+          rel?:
             | { name?: string | null; archived?: boolean | null }
             | { name?: string | null; archived?: boolean | null }[]
             | null,
@@ -281,9 +281,10 @@ export default function TrackerPage() {
     onSuccess: (row, variables) => {
       toast.success("Timer started");
       const projectId = row?.project_id || variables?.projectId || UNASSIGNED_PROJECT_ID;
+      const projectRel = row?.time_tracker_projects;
       const projectName =
-        row?.time_tracker_projects && !Array.isArray(row.time_tracker_projects)
-          ? row.time_tracker_projects?.name ?? undefined
+        projectRel && !Array.isArray(projectRel)
+          ? (projectRel as { name?: string | null; billable?: boolean | null })?.name ?? undefined
           : projects.find((p) => p.id === projectId)?.name ??
             (projectId === UNASSIGNED_PROJECT_ID ? UNASSIGNED_PROJECT_NAME : undefined);
       const clientId = row?.client_id ?? (variables?.client
@@ -303,8 +304,8 @@ export default function TrackerPage() {
         task_name: tasksQuery.data?.find((t) => t.id === variables?.taskId)?.name,
         description: row?.description ?? variables?.description ?? null,
         billable:
-          (row?.time_tracker_projects && !Array.isArray(row.time_tracker_projects)
-            ? row.time_tracker_projects?.billable ?? null
+          (projectRel && !Array.isArray(projectRel)
+            ? (projectRel as { billable?: boolean | null })?.billable ?? null
             : null) ??
           projects.find((p) => p.id === projectId)?.billable ??
           true,

@@ -13,22 +13,43 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sampleWins } from "@/lib/sample-data";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Sparkles, Upload } from "lucide-react";
+import { Sparkles, Upload, Pencil, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 
-type WinPost = (typeof sampleWins)[number];
+type PostType = "internal" | "linkedin";
+
+type WinPost = {
+  id: string;
+  title: string;
+  content: string | null;
+  author: string | null;
+  date: string;
+  image?: string | null;
+  type: PostType;
+  linkedin_url?: string | null;
+  excerpt?: string | null;
+  featured?: boolean | null;
+  tags?: string[] | null;
+};
 
 export default function WinsPage() {
   const [posts, setPosts] = useState<WinPost[]>(sampleWins);
   const [title, setTitle] = useState("");
   const [image, setImage] = useState("");
+  const [postType, setPostType] = useState<PostType>("internal");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -49,35 +70,157 @@ export default function WinsPage() {
         setPosts(data as WinPost[]);
       }
     };
+    const fetchProfile = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userData.user.id)
+          .single();
+        setIsAdmin(Boolean(profile?.is_admin));
+      }
+    };
     fetchPosts();
+    fetchProfile();
   }, []);
 
   const handleSubmit = async () => {
-    const content = editor?.getHTML() || "";
-    if (!title || !content) {
-      toast.error("Add a title and some content first");
+    const supabase = createClient();
+    setIsSaving(true);
+    const isEditing = Boolean(editingId);
+    const id = editingId ?? crypto.randomUUID();
+
+    if (postType === "internal") {
+      const content = editor?.getHTML() || "";
+      if (!title || !content) {
+        toast.error("Add a title and some content first");
+        setIsSaving(false);
+        return;
+      }
+      const payload: WinPost = {
+        id,
+        title,
+        content,
+        author: "You",
+        date: isEditing
+          ? posts.find((p) => p.id === id)?.date ?? new Date().toISOString()
+          : new Date().toISOString(),
+        image: image.trim() ? image.trim() : null,
+        type: "internal",
+        linkedin_url: null,
+      };
+
+      if (isEditing) {
+        await supabase.from("wins_posts").update(payload).eq("id", id);
+        setPosts((prev) => prev.map((p) => (p.id === id ? payload : p)));
+        toast.success("Post updated");
+      } else {
+        await supabase.from("wins_posts").insert({
+          ...payload,
+          tags: payload.tags ?? [],
+          featured: payload.featured ?? false,
+        });
+        setPosts((prev) => [payload, ...prev]);
+        toast.success("Win published");
+      }
+      resetFormState();
       return;
     }
-    const supabase = createClient();
-    const newPost: WinPost = {
-      id: crypto.randomUUID(),
-      title,
-      content,
-      author: "You",
-      date: new Date().toISOString(),
-      image: image || "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?sig=10",
+
+    // LinkedIn embed path
+    if (!linkedinUrl) {
+      toast.error("Add a LinkedIn post URL");
+      setIsSaving(false);
+      return;
+    }
+    const payload: WinPost = {
+      id,
+      title: title || "LinkedIn post",
+      content: null,
+      author: "LinkedIn",
+      date: isEditing
+        ? posts.find((p) => p.id === id)?.date ?? new Date().toISOString()
+        : new Date().toISOString(),
+      image: image.trim() ? image.trim() : null,
+      type: "linkedin",
+      linkedin_url: linkedinUrl,
     };
-    setPosts((prev) => [newPost, ...prev]);
-    await supabase.from("wins_posts").insert(newPost);
-    toast.success("Win published");
+
+    if (isEditing) {
+      await supabase.from("wins_posts").update(payload).eq("id", id);
+      setPosts((prev) => prev.map((p) => (p.id === id ? payload : p)));
+      toast.success("Post updated");
+    } else {
+      await supabase.from("wins_posts").insert({
+        ...payload,
+        tags: payload.tags ?? [],
+        featured: payload.featured ?? false,
+      });
+      setPosts((prev) => [payload, ...prev]);
+      toast.success("LinkedIn post added");
+    }
+    resetFormState();
+  };
+
+  const resetFormState = () => {
+    setIsSaving(false);
+    setEditingId(null);
     setTitle("");
     setImage("");
+    setLinkedinUrl("");
     editor?.commands.clearContent();
+    setPostType("internal");
+  };
+
+  const handleEdit = (post: WinPost) => {
+    setEditingId(post.id);
+    setTitle(post.title);
+    setImage(post.image ?? "");
+    setPostType(post.type);
+    setLinkedinUrl(post.linkedin_url ?? "");
+    if (post.type === "internal" && post.content) {
+      editor?.commands.setContent(post.content);
+    } else {
+      editor?.commands.clearContent();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setIsDeleting(id);
+    const supabase = createClient();
+    await supabase.from("wins_posts").delete().eq("id", id);
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    if (editingId === id) resetFormState();
+    setIsDeleting(null);
+    toast.success("Post deleted");
+  };
+
+  const handleCancelEdit = () => {
+    resetFormState();
+  };
+
+  const buildLinkedInEmbedUrl = (url: string) => {
+    if (!url) return null;
+    // Support raw URNs and common public share URLs that contain the activity/share id
+    const urnMatch = url.match(/urn:li:(activity|share):[0-9]+/);
+    if (urnMatch) {
+      return `https://www.linkedin.com/embed/feed/update/${urnMatch[0]}`;
+    }
+    const activityIdMatch = url.match(/activity-([0-9]+)/);
+    if (activityIdMatch?.[1]) {
+      return `https://www.linkedin.com/embed/feed/update/urn:li:activity:${activityIdMatch[1]}`;
+    }
+    const shareIdMatch = url.match(/share-([0-9]+)/);
+    if (shareIdMatch?.[1]) {
+      return `https://www.linkedin.com/embed/feed/update/urn:li:share:${shareIdMatch[1]}`;
+    }
+    return null;
   };
 
   const timeline = useMemo(
     () =>
-      posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      [...posts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [posts],
   );
 
@@ -89,32 +232,64 @@ export default function WinsPage() {
         <p className="text-muted-foreground">
           Capture new hires, Friday wins, and lessons learned with rich text.
         </p>
+        {isAdmin && <p className="text-xs text-muted-foreground">Admin: you can edit or delete any post.</p>}
       </header>
 
       <Card className="border-white/10 bg-white/5 backdrop-blur">
         <CardHeader>
-          <CardTitle>New Post</CardTitle>
-          <CardDescription>Authenticated users can publish instantly.</CardDescription>
+          <CardTitle>{editingId ? "Edit Post" : "New Post"}</CardTitle>
+          <CardDescription>
+            {editingId
+              ? "Admin editing mode. Save changes or cancel."
+              : "Authenticated users can publish instantly."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <Tabs value={postType} onValueChange={(val) => setPostType(val as PostType)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="internal">Internal update</TabsTrigger>
+              <TabsTrigger value="linkedin">Embed LinkedIn</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           <Input
-            placeholder="Post title"
+            placeholder={postType === "linkedin" ? "Optional title (e.g., Campaign launch)" : "Post title"}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
           />
+
           <Textarea
             placeholder="Image URL (optional)"
             value={image}
             onChange={(e) => setImage(e.target.value)}
             className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
           />
-          <div className="rounded-xl border border-white/15 bg-white/5">
-            <EditorContent editor={editor} className="prose prose-invert max-w-none p-3 text-sm" />
+
+          {postType === "linkedin" ? (
+            <Input
+              placeholder="LinkedIn post URL (public)"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
+            />
+          ) : (
+            <div className="rounded-xl border border-white/15 bg-white/5">
+              <EditorContent editor={editor} className="prose prose-invert max-w-none p-3 text-sm" />
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button onClick={handleSubmit} className="gap-2" disabled={isSaving}>
+              <Upload className="h-4 w-4" />
+              {editingId ? "Save changes" : postType === "linkedin" ? "Add LinkedIn post" : "Publish"}
+            </Button>
+            {editingId && (
+              <Button variant="ghost" onClick={handleCancelEdit} className="gap-2">
+                <X className="h-4 w-4" /> Cancel
+              </Button>
+            )}
           </div>
-          <Button onClick={handleSubmit} className="gap-2">
-            <Upload className="h-4 w-4" /> Publish
-          </Button>
         </CardContent>
       </Card>
 
@@ -149,14 +324,75 @@ export default function WinsPage() {
                   <CardHeader>
                     <CardTitle>{post.title}</CardTitle>
                     <CardDescription>
-                      By {post.author} • {format(new Date(post.date), "MMM d, yyyy")}
+                      By {post.author ?? "Unknown"} • {format(new Date(post.date), "MMM d, yyyy")}
                     </CardDescription>
+                    {isAdmin && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(post)}
+                          disabled={isSaving && editingId === post.id}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(post.id)}
+                          disabled={isDeleting === post.id}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {isDeleting === post.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div
-                      className="prose prose-invert max-w-none text-sm"
-                      dangerouslySetInnerHTML={{ __html: post.content }}
-                    />
+                    {post.type === "linkedin" && post.linkedin_url ? (
+                      (() => {
+                        const embedUrl = buildLinkedInEmbedUrl(post.linkedin_url);
+                        if (!embedUrl) {
+                          return (
+                            <div className="space-y-2 text-sm">
+                              <p className="text-muted-foreground">
+                                Unable to render embed. Open on LinkedIn instead.
+                              </p>
+                              <Button asChild variant="outline" size="sm">
+                                <a href={post.linkedin_url} target="_blank" rel="noreferrer">
+                                  View on LinkedIn
+                                </a>
+                              </Button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="space-y-2">
+                            <div className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                              <iframe
+                                src={embedUrl}
+                                height="450"
+                                width="100%"
+                                allowFullScreen
+                                title={post.title}
+                                className="w-full"
+                              />
+                            </div>
+                            <Button asChild variant="ghost" size="sm" className="px-0">
+                              <a href={post.linkedin_url} target="_blank" rel="noreferrer">
+                                View on LinkedIn
+                              </a>
+                            </Button>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div
+                        className="prose prose-invert max-w-none text-sm"
+                        dangerouslySetInnerHTML={{ __html: post.content ?? "" }}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>

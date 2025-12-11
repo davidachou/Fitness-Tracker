@@ -143,7 +143,7 @@ export function TimeTimeline({
   const openEdit = (entry: TimelineEntry) => {
     setError(null);
     const project = projects.find((p) => p.id === entry.project_id);
-    const clientName = project?.client ?? entry.client ?? UNASSIGNED_CLIENT_LABEL;
+    const clientName = entry.client ?? project?.client ?? UNASSIGNED_CLIENT_LABEL;
     setEditing({
       id: entry.id,
       client: clientName,
@@ -189,6 +189,7 @@ export function TimeTimeline({
     }
     await onUpdateEntryAction({
       id: editing.id,
+      client: editing.client,
       projectId: editing.projectId || UNASSIGNED_PROJECT_ID,
       taskId: editing.taskId || null,
       description: editing.description || "",

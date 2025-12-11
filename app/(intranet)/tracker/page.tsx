@@ -264,36 +264,51 @@ export default function TrackerPage() {
       if (existing) {
         throw new Error("You already have a running timer.");
       }
-      const { error } = await supabase.from("active_timers").insert({
-        user_id: user.id,
-        project_id: projectId,
-        client_id: clientId,
-        task_id: values.taskId || null,
-        description: values.description || null,
-      });
+      const { data, error } = await supabase
+        .from("active_timers")
+        .insert({
+          user_id: user.id,
+          project_id: projectId,
+          client_id: clientId,
+          task_id: values.taskId || null,
+          description: values.description || null,
+        })
+        .select("id, user_id, project_id, client_id, task_id, description, start_time, time_tracker_projects(name, billable)")
+        .single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (row, variables) => {
       toast.success("Timer started");
-      const projectId = variables?.projectId || UNASSIGNED_PROJECT_ID;
+      const projectId = row?.project_id || variables?.projectId || UNASSIGNED_PROJECT_ID;
       const projectName =
-        projects.find((p) => p.id === projectId)?.name ??
-        (projectId === UNASSIGNED_PROJECT_ID ? UNASSIGNED_PROJECT_NAME : undefined);
-      const clientId = variables?.client
+        row?.time_tracker_projects && !Array.isArray(row.time_tracker_projects)
+          ? row.time_tracker_projects?.name ?? undefined
+          : projects.find((p) => p.id === projectId)?.name ??
+            (projectId === UNASSIGNED_PROJECT_ID ? UNASSIGNED_PROJECT_NAME : undefined);
+      const clientId = row?.client_id ?? (variables?.client
         ? clientsQuery.data?.find((c) => c.name === variables.client)?.id ?? null
-        : null;
+        : null);
       setRunningTimer({
-        id: crypto.randomUUID(),
+        id: row?.id ?? crypto.randomUUID(),
         user_id: user!.id,
         project_id: projectId,
         client_id: clientId,
-        client_name: variables?.client ?? null,
+        client_name:
+          variables?.client ??
+          clientsQuery.data?.find((c) => c.id === clientId)?.name ??
+          null,
         project_name: projectName,
         task_id: variables?.taskId || null,
         task_name: tasksQuery.data?.find((t) => t.id === variables?.taskId)?.name,
-        description: variables?.description ?? null,
-        billable: projects.find((p) => p.id === projectId)?.billable ?? true,
-        start_time: new Date().toISOString(),
+        description: row?.description ?? variables?.description ?? null,
+        billable:
+          (row?.time_tracker_projects && !Array.isArray(row.time_tracker_projects)
+            ? row.time_tracker_projects?.billable ?? null
+            : null) ??
+          projects.find((p) => p.id === projectId)?.billable ??
+          true,
+        start_time: row?.start_time ?? new Date().toISOString(),
       });
       queryClient.invalidateQueries({ queryKey: ["active-timer", user?.id] });
     },

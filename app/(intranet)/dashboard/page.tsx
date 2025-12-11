@@ -284,8 +284,10 @@ export default function DashboardPage() {
                     <p className="text-xs text-muted-foreground dark:text-white/70">{link.description}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground dark:text-white/70">
-                  <span>{link.url.replace(/^https?:\/\//, "")}</span>
+                <div className="mt-4 flex items-center justify-between gap-2 text-xs text-muted-foreground dark:text-white/70 min-w-0">
+                  <span className="truncate" title={link.url}>
+                    {link.url.replace(/^https?:\/\//, "")}
+                  </span>
                   <ArrowUpRight className="h-4 w-4" />
                 </div>
               </motion.a>

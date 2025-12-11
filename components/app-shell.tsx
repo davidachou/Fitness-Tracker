@@ -54,13 +54,13 @@ const navItems: { href: string; label: string; icon: React.ComponentType<{ class
   { href: "/profile", label: "Profile", icon: UserCircle2 },
   { href: "/team", label: "Team", icon: Users },
   { href: "/knowledge", label: "The Brain", icon: BookOpen, status: "placeholder" },
-  { href: "/projects", label: "Projects", icon: KanbanSquare, status: "placeholder" },
+  { href: "/projects", label: "Projects", icon: KanbanSquare },
   { href: "/wins", label: "Wins & Blog", icon: Trophy, status: "placeholder" },
   { href: "/calendar", label: "Calendar", icon: CalendarClock },
-  { href: "/quick-links", label: "Quick Links", icon: LinkIcon, status: "placeholder" },
+  { href: "/quick-links", label: "Quick Links", icon: LinkIcon },
   { href: "/feedback", label: "Feedback", icon: MessageSquare, status: "placeholder" },
   { href: "/booking", label: "Bookings", icon: CalendarDays, status: "placeholder" },
-  { href: "/polls", label: "Polls", icon: BarChart4, status: "placeholder" },
+  { href: "/polls", label: "Polls", icon: BarChart4 },
   { href: "/tracker", label: "Time Tracker", icon: Timer },
 ];
 

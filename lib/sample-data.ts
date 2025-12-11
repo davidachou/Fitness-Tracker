@@ -155,31 +155,24 @@ export const sampleOOOEvents = [
 export const sampleQuickLinks = [
   {
     id: "ql-1",
-    label: "Proposals Drive",
-    description: "Templates and signed pitch assets",
+    label: "Healthcare Article Repo",
+    description: "Modern healthcare tutorial archive",
     icon: "Folder",
-    url: "https://drive.google.com/proposals",
+    url: "https://modern-healthcare.vercel.app/tutorial",
   },
   {
     id: "ql-2",
     label: "Expenses",
-    description: "Submit expenses in 60 seconds",
+    description: "Submit expenses (link pending)",
     icon: "Receipt",
     url: "https://example.com/expenses",
   },
   {
     id: "ql-3",
-    label: "Time Tracking",
-    description: "Toggl workspace",
+    label: "Clockify",
+    description: "Time tracking dashboard",
     icon: "Clock",
-    url: "https://toggl.com/placeholder",
-  },
-  {
-    id: "ql-4",
-    label: "VPN",
-    description: "Secure client access",
-    icon: "Shield",
-    url: "https://example.com/vpn",
+    url: "https://app.clockify.me/tracker",
   },
 ];
 

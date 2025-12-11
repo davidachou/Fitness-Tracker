@@ -120,7 +120,7 @@ export const sampleWins = [
     author: "Alex Rivera",
     date: "2024-11-10",
     image: "",
-    type: "internal",
+    type: "internal" as const,
     linkedin_url: null,
   },
   {
@@ -130,7 +130,7 @@ export const sampleWins = [
     author: "Priya Desai",
     date: "2024-10-22",
     image: "",
-    type: "internal",
+    type: "internal" as const,
     linkedin_url: null,
   },
 ];

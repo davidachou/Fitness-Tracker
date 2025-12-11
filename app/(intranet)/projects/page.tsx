@@ -1,189 +1,182 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { sampleProjects } from "@/lib/sample-data";
-import { CalendarDays, ExternalLink, GripVertical, KanbanSquare } from "lucide-react";
-import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Users, Filter, List } from "lucide-react";
 
-type Project = (typeof sampleProjects)[number];
-type SupabaseProject = {
-  id: string;
-  client: string;
-  name: string;
-  partner: string;
-  stage: Project["stage"];
-  next_milestone: string;
-  next_date: string;
-  team: { name: string; avatar?: string }[];
-  drive: string;
+type ClientTeam = {
+  clientId: string;
+  clientName: string;
+  archived: boolean;
+  people: {
+    id: string;
+    name: string;
+    avatar?: string;
+  }[];
 };
 
-const stages = ["Lead", "Pitch", "Active", "Closed-Won", "Closed-Lost"] as const;
+type ContributorRow = {
+  client_id: string;
+  client_name: string;
+  archived: boolean;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
+const cleanAvatar = (value?: string | null) => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+  const lower = trimmed.toLowerCase();
+  if (lower === "null" || lower === "undefined") return "";
+  return trimmed;
+};
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>(sampleProjects);
+  const [clientTeams, setClientTeams] = useState<ClientTeam[]>([]);
+  const [hideArchived, setHideArchived] = useState(true);
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    const supabase = createClient();
-    const fetchProjects = async () => {
-      const { data } = await supabase.from("projects").select("*");
-      if (data && data.length > 0) {
-        setProjects(
-          (data as SupabaseProject[]).map((p) => ({
-            ...p,
-            team: (p.team || []).map((member, memberIdx) => ({
-              name: member.name || `Teammate ${memberIdx + 1}`,
-              avatar:
-                member.avatar ||
-                `https://images.unsplash.com/photo-1524504388940-b1c1722653e1?sig=${memberIdx + 11}`,
-            })),
-          })),
-        );
+    const load = async () => {
+      const { data, error } = await supabase.rpc("client_contributors");
+      if (error) {
+        console.error("client_contributors error", error);
+        return;
       }
+
+      const aggregates = new Map<string, ClientTeam>();
+
+      (data as ContributorRow[] | null)?.forEach((row) => {
+        const clientId = row.client_id;
+        const clientName = row.client_name || "Client";
+        const clientArchived = Boolean(row.archived);
+        const personId = row.user_id;
+        const personName = row.full_name || "Teammate";
+        const avatar = cleanAvatar(row.avatar_url) || `/team/${personName}.png`;
+
+        if (!aggregates.has(clientId)) {
+          aggregates.set(clientId, {
+            clientId,
+            clientName,
+            archived: clientArchived,
+            people: [],
+          });
+        }
+        const entry = aggregates.get(clientId)!;
+        const already = entry.people.find((p) => p.id === personId);
+        if (!already) {
+          entry.people.push({ id: personId, name: personName, avatar });
+        }
+      });
+
+      const sorted = Array.from(aggregates.values()).sort((a, b) =>
+        a.clientName.localeCompare(b.clientName),
+      );
+      setClientTeams(sorted);
     };
-    fetchProjects();
-  }, []);
 
-  const grouped = useMemo(() => {
-    return stages.reduce(
-      (acc, stage) => ({
-        ...acc,
-        [stage]: projects.filter((p) => p.stage === stage),
-      }),
-      {} as Record<(typeof stages)[number], Project[]>,
-    );
-  }, [projects]);
+    load();
+  }, [supabase]);
 
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    const sourceStage = result.source.droppableId as (typeof stages)[number];
-    const destStage = result.destination.droppableId as (typeof stages)[number];
-    const updated = Array.from(grouped[sourceStage] ?? []);
-    const [moved] = updated.splice(result.source.index, 1);
-    const destList = Array.from(grouped[destStage] ?? []);
-    destList.splice(result.destination.index, 0, { ...moved, stage: destStage });
-
-    const nextProjects = projects.map((p) =>
-      p.id === moved.id ? { ...p, stage: destStage } : p,
-    );
-    setProjects(nextProjects);
-    // Optional: persist to Supabase here
-  };
+  const visibleClients = useMemo(
+    () => (hideArchived ? clientTeams.filter((c) => !c.archived) : clientTeams),
+    [clientTeams, hideArchived],
+  );
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-primary">Pipeline</p>
-        <h2 className="text-3xl font-black">Active Project Dashboard</h2>
+        <p className="text-xs uppercase tracking-[0.3em] text-primary">Projects</p>
+        <h2 className="text-3xl font-black">Who’s working with each client</h2>
         <p className="text-muted-foreground">
-          Drag to reorder. Switch to table view for summaries. Data pulls from Supabase (placeholders preloaded).
+          Team list is derived from logged time against each client (directly or via a project).
         </p>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Button
+            variant={hideArchived ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setHideArchived((v) => !v)}
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            {hideArchived ? "Showing active" : "Including archived"}
+          </Button>
+          <div className="text-xs text-muted-foreground">
+            Found {visibleClients.length} client{visibleClients.length === 1 ? "" : "s"}.
+          </div>
+        </div>
       </header>
 
-      <Tabs defaultValue="kanban" className="space-y-4">
+      <Tabs defaultValue="grid" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="kanban" className="flex items-center gap-2">
-            <KanbanSquare className="h-4 w-4" /> Kanban
+          <TabsTrigger value="grid" className="flex items-center gap-2">
+            <Users className="h-4 w-4" /> Grid
           </TabsTrigger>
-          <TabsTrigger value="table">Table</TabsTrigger>
+          <TabsTrigger value="table" className="flex items-center gap-2">
+            <List className="h-4 w-4" /> Table
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="kanban" className="border-none bg-transparent p-0 shadow-none">
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
-              {stages.map((stage) => (
-                <Droppable droppableId={stage} key={stage}>
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="flex h-full flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold">{stage}</span>
-                        <Badge variant="secondary" className="bg-white/10">
-                          {grouped[stage]?.length || 0}
-                        </Badge>
-                      </div>
-                      <div className="space-y-3">
-                        {grouped[stage]?.map((project, idx) => (
-                          <Draggable key={project.id} draggableId={project.id} index={idx}>
-                            {(dragProvided) => (
-                              <div
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                {...dragProvided.dragHandleProps}
-                              >
-                                <motion.div
-                                  layout
-                                  className="rounded-xl border border-white/10 bg-white/10 p-3 shadow-lg backdrop-blur"
-                                  whileHover={{ scale: 1.01 }}
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                    <div className="flex-1 space-y-1">
-                                      <div className="flex items-center justify-between">
-                                        <p className="font-semibold leading-tight">
-                                          {project.client}
-                                        </p>
-                                        <Badge variant="outline" className="border-emerald-300/40 text-emerald-200">
-                                          {project.partner}
-                                        </Badge>
-                                      </div>
-                                      <p className="text-sm text-muted-foreground">{project.name}</p>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <CalendarDays className="h-4 w-4" />
-                                        <span>
-                                          {project.next_milestone} —{" "}
-                                          {new Date(project.next_date).toLocaleDateString()}
-                                        </span>
-                                      </div>
-                                      <div className="flex -space-x-2 pt-1">
-                                        {project.team.map((member) => (
-                                          <Avatar key={member.name} className="h-8 w-8 border-2 border-white/50">
-                                            <AvatarImage src={member.avatar} />
-                                            <AvatarFallback>
-                                              {member.name
-                                                .split(" ")
-                                                .map((n) => n[0])
-                                                .join("")}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                        ))}
-                                      </div>
-                                      <Button
-                                        asChild
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full justify-start gap-2 text-xs"
-                                      >
-                                        <Link href={project.drive} target="_blank" rel="noreferrer">
-                                          <ExternalLink className="h-4 w-4" /> Drive folder
-                                        </Link>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    </div>
-                  )}
-                </Droppable>
-              ))}
+        <TabsContent value="grid" className="space-y-4">
+          {visibleClients.length === 0 && (
+            <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-muted-foreground">
+              No clients to show yet. Log time to appear here.
             </div>
-          </DragDropContext>
+          )}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {visibleClients.map((client) => (
+              <div
+                key={client.clientId}
+                className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">{client.clientName}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {client.people.length} teammate{client.people.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  {client.archived && (
+                    <Badge variant="outline" className="border-white/30 text-xs text-muted-foreground">
+                      Archived
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-3 flex -space-x-2 overflow-hidden">
+                  {client.people.map((person) => (
+                    <Avatar key={person.id} className="h-10 w-10 border-2 border-white/60">
+                      <AvatarImage src={person.avatar} />
+                      <AvatarFallback>
+                        {person.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
+                <div className="mt-3 text-sm text-muted-foreground leading-6">
+                  {client.people.length === 0 ? (
+                    <span>No time logged yet.</span>
+                  ) : (
+                    client.people.map((p, idx) => (
+                      <span key={p.id}>
+                        {p.name}
+                        {idx < client.people.length - 1 ? " · " : ""}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="table" className="border border-white/10 bg-white/5 p-0 backdrop-blur">
@@ -191,44 +184,61 @@ export default function ProjectsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Partner</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead>Next milestone</TableHead>
-                <TableHead>Team</TableHead>
+                <TableHead>People</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((project) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-semibold">{project.client}</TableCell>
-                  <TableCell>{project.name}</TableCell>
-                  <TableCell>{project.partner}</TableCell>
+              {visibleClients.map((client) => (
+                <TableRow key={client.clientId}>
+                  <TableCell className="font-semibold">{client.clientName}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="bg-white/10">
-                      {project.stage}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {project.next_milestone} — {new Date(project.next_date).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex -space-x-2">
-                      {project.team.map((member) => (
-                        <Avatar key={member.name} className="h-8 w-8 border-2 border-white/50">
-                          <AvatarImage src={member.avatar} />
-                          <AvatarFallback>
-                            {member.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-2">
+                        {client.people.map((person) => (
+                          <Avatar key={person.id} className="h-8 w-8 border-2 border-white/50">
+                            <AvatarImage src={person.avatar} />
+                            <AvatarFallback>
+                              {person.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {client.people.map((p, idx) => (
+                          <span key={p.id}>
+                            {p.name}
+                            {idx < client.people.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                        {client.people.length === 0 && "No time logged"}
+                      </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {client.archived ? (
+                      <Badge variant="outline" className="border-white/30 text-muted-foreground">
+                        Archived
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-white/10">
+                        Active
+                      </Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
+              {visibleClients.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                    No clients to show yet. Log time to appear here.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </TabsContent>

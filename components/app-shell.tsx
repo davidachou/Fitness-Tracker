@@ -51,8 +51,8 @@ type NavStatus = "in-progress" | "placeholder";
 
 const navItems: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; status?: NavStatus }[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard, status: "placeholder" },
-  { href: "/profile", label: "Profile", icon: UserCircle2, status: "placeholder" },
-  { href: "/team", label: "Team", icon: Users, status: "in-progress" },
+  { href: "/profile", label: "Profile", icon: UserCircle2 },
+  { href: "/team", label: "Team", icon: Users },
   { href: "/knowledge", label: "The Brain", icon: BookOpen, status: "placeholder" },
   { href: "/projects", label: "Projects", icon: KanbanSquare, status: "placeholder" },
   { href: "/wins", label: "Wins & Blog", icon: Trophy, status: "placeholder" },

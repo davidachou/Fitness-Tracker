@@ -106,7 +106,7 @@ export default function TrackerPage() {
       const { data, error } = await supabase
         .from("time_entries")
         .select(
-          "id, user_id, project_id, client_id, task_id, description, start_time, end_time, duration_seconds, billable, time_tracker_projects(name, billable, archived, clients(name, archived)), time_tracker_tasks(name, project_id)",
+          "id, user_id, project_id, client_id, task_id, description, start_time, end_time, duration_seconds, billable, time_tracker_projects(name, billable, archived, clients(name, archived)), clients(name, archived), time_tracker_tasks(name, project_id)",
         )
         .eq("user_id", user!.id)
         .order("start_time", { ascending: false });
@@ -142,6 +142,10 @@ export default function TrackerPage() {
                 | null;
             }[]
           | null;
+        clients:
+          | { name?: string | null; archived?: boolean | null }
+          | { name?: string | null; archived?: boolean | null }[]
+          | null;
         time_tracker_tasks:
           | { name?: string | null; project_id?: string | null }
           | { name?: string | null; project_id?: string | null }[]
@@ -152,9 +156,29 @@ export default function TrackerPage() {
         const projectRel = Array.isArray(row.time_tracker_projects)
           ? row.time_tracker_projects[0]
           : row.time_tracker_projects;
-        const clientRel = projectRel?.clients;
-        let clientName = Array.isArray(clientRel) ? clientRel[0]?.name ?? null : clientRel?.name ?? null;
-        let clientArchived = Array.isArray(clientRel) ? clientRel[0]?.archived ?? false : clientRel?.archived ?? false;
+
+        const clientRelFromProject = projectRel?.clients;
+        const clientRelFromDirect = row.clients;
+
+        const normalizeClient = (
+          rel:
+            | { name?: string | null; archived?: boolean | null }
+            | { name?: string | null; archived?: boolean | null }[]
+            | null,
+        ) => {
+          const value = Array.isArray(rel) ? rel[0] : rel;
+          return { name: value?.name ?? null, archived: value?.archived ?? false };
+        };
+
+        const clientFromProject = normalizeClient(clientRelFromProject);
+        const clientFromDirect = normalizeClient(clientRelFromDirect);
+        const preferDirect = row.project_id === UNASSIGNED_PROJECT_ID;
+
+        const primaryClient = preferDirect ? clientFromDirect : clientFromProject;
+        const secondaryClient = preferDirect ? clientFromProject : clientFromDirect;
+
+        let clientName = primaryClient.name ?? secondaryClient.name ?? null;
+        let clientArchived = primaryClient.archived || secondaryClient.archived;
 
         if (!clientName && row.client_id) {
           const fallback = clientsQuery.data?.find((c) => c.id === row.client_id);
@@ -169,7 +193,9 @@ export default function TrackerPage() {
         return {
           id: row.id,
           project_id: row.project_id,
-          project_name: projectRel?.name,
+          project_name:
+            projectRel?.name ||
+            (row.project_id === UNASSIGNED_PROJECT_ID ? UNASSIGNED_PROJECT_NAME : null),
           project_archived: projectRel?.archived ?? false,
           client_archived: clientArchived,
           client: clientName,
@@ -226,6 +252,10 @@ export default function TrackerPage() {
     mutationFn: async (values: StartFormValues) => {
       if (!user?.id) throw new Error("Missing user");
       const projectId = values.projectId || UNASSIGNED_PROJECT_ID;
+      const clientId = values.client
+        ? clientsQuery.data?.find((c) => c.name === values.client)?.id ?? null
+        : null;
+
       const { data: existing } = await supabase
         .from("active_timers")
         .select("id")
@@ -237,6 +267,7 @@ export default function TrackerPage() {
       const { error } = await supabase.from("active_timers").insert({
         user_id: user.id,
         project_id: projectId,
+        client_id: clientId,
         task_id: values.taskId || null,
         description: values.description || null,
       });
@@ -274,6 +305,7 @@ export default function TrackerPage() {
     mutationFn: async () => {
       if (!user?.id || !runningTimer) throw new Error("No timer running");
       const projectId = runningTimer.project_id || UNASSIGNED_PROJECT_ID;
+      const clientId = runningTimer.client_id || null;
       const end = new Date();
       const start = new Date(runningTimer.start_time);
       const duration = Math.max(1, differenceInSeconds(end, start));
@@ -281,7 +313,7 @@ export default function TrackerPage() {
       const { error: insertError } = await supabase.from("time_entries").insert({
         user_id: user.id,
         project_id: projectId,
-        client_id: runningTimer.client_id || null,
+        client_id: clientId,
         task_id: runningTimer.task_id || null,
         description: runningTimer.description,
         start_time: runningTimer.start_time,
@@ -305,7 +337,7 @@ export default function TrackerPage() {
               {
                 id: crypto.randomUUID(),
                 client: runningTimer.client_name ?? null,
-                client_id: runningTimer.client_id ?? null,
+                client_id: clientId,
                 project_name: runningTimer.project_name ?? UNASSIGNED_PROJECT_NAME,
                 task_name: runningTimer.task_name,
                 description: runningTimer.description,

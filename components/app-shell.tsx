@@ -34,8 +34,6 @@ import { toast } from "sonner";
 import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { TimerBadge } from "@/components/tracker/TimerBadge";
-import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
-import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type AppShellProps = {
   user: {
@@ -191,7 +189,6 @@ export function AppShell({ user, children }: AppShellProps) {
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
-  const { adminUIMode } = useAdminUIMode();
 
   const activeTourStep = isTourActive ? tourSteps[tourIndex] : null;
 

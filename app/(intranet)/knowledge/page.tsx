@@ -91,7 +91,7 @@ export default function KnowledgeHubPage() {
     setIsSaving(false);
   };
 
-  const canEdit = (asset: Asset) => shouldShowAdminFeatures(isAdmin, adminUIMode);
+  const canEdit = () => shouldShowAdminFeatures(isAdmin, adminUIMode);
 
   const handleSubmit = async () => {
     const supabase = createClient();
@@ -253,7 +253,7 @@ export default function KnowledgeHubPage() {
                     <span className="flex-1 break-words">{asset.title}</span>
                   </CardTitle>
                   <CardDescription className="line-clamp-2">{asset.description}</CardDescription>
-                  {canEdit(asset) && (
+                  {canEdit() && (
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => startEdit(asset)}>
                         <Pencil className="mr-2 h-4 w-4" />

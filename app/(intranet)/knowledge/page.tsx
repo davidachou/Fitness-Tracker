@@ -20,6 +20,8 @@ import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type Asset = ((typeof sampleKnowledgeAssets)[number]) & { user_id?: string | null };
 
@@ -34,6 +36,7 @@ export default function KnowledgeHubPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const { adminUIMode } = useAdminUIMode();
 
   useEffect(() => {
     const supabase = createClient();
@@ -88,7 +91,7 @@ export default function KnowledgeHubPage() {
     setIsSaving(false);
   };
 
-  const canEdit = (asset: Asset) => isAdmin || (!!userId && asset.user_id === userId);
+  const canEdit = (asset: Asset) => shouldShowAdminFeatures(isAdmin, adminUIMode);
 
   const handleSubmit = async () => {
     const supabase = createClient();
@@ -154,7 +157,7 @@ export default function KnowledgeHubPage() {
         </p>
       </header>
 
-      {isAdmin && (
+      {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
         <Card className="border-white/10 bg-white/5 backdrop-blur">
           <CardHeader>
             <CardTitle>{editingId ? "Edit asset" : "Add asset"}</CardTitle>

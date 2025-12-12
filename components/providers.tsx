@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AdminUIModeProvider } from "@/hooks/use-admin-ui-mode";
 
 type ProvidersProps = {
   children: React.ReactNode;
@@ -36,9 +37,11 @@ export function Providers({ children }: ProvidersProps) {
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider delayDuration={100}>{children}</TooltipProvider>
-        <Toaster richColors position="top-right" closeButton />
-        <ReactQueryDevtools initialIsOpen={false} />
+        <AdminUIModeProvider>
+          <TooltipProvider delayDuration={100}>{children}</TooltipProvider>
+          <Toaster richColors position="top-right" closeButton />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </AdminUIModeProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

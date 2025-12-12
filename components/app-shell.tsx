@@ -29,10 +29,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AdminUIToggle } from "@/components/admin-ui-toggle";
 import { toast } from "sonner";
 import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { TimerBadge } from "@/components/tracker/TimerBadge";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type AppShellProps = {
   user: {
@@ -47,6 +50,7 @@ type Profile = {
   full_name: string | null;
   avatar_url?: string | null;
   role?: string | null;
+  is_admin?: boolean;
 };
 
 type NavStatus = "in-progress" | "placeholder";
@@ -187,6 +191,7 @@ export function AppShell({ user, children }: AppShellProps) {
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
+  const { adminUIMode } = useAdminUIMode();
 
   const activeTourStep = isTourActive ? tourSteps[tourIndex] : null;
 
@@ -239,7 +244,7 @@ export function AppShell({ user, children }: AppShellProps) {
         const supabase = createClient();
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url, role")
+          .select("id, full_name, avatar_url, role, is_admin")
           .eq("id", user.id)
           .single();
 
@@ -467,8 +472,9 @@ export function AppShell({ user, children }: AppShellProps) {
                 </div>
                 <div
                   data-tour-nav="theme"
-                  className="flex items-center"
+                  className="flex items-center gap-1"
                 >
+                  <AdminUIToggle isAdmin={Boolean(profile?.is_admin)} />
                   <ThemeSwitcher />
                 </div>
                 <Button

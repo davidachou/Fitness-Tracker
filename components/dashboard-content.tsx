@@ -9,6 +9,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { LogoutButton } from '@/components/logout-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useAdminUIMode } from '@/hooks/use-admin-ui-mode'
+import { shouldShowAdminFeatures } from '@/lib/utils'
 
 interface Profile {
   id: string
@@ -27,6 +29,7 @@ export function DashboardContent() {
   const [editingExpertise, setEditingExpertise] = useState(false)
   const [newExpertise, setNewExpertise] = useState('')
   const router = useRouter()
+  const { adminUIMode } = useAdminUIMode()
 
   const loadDashboardData = async () => {
     try {
@@ -248,7 +251,7 @@ export function DashboardContent() {
                   <p className="text-sm text-muted-foreground mt-1">No expertise added yet.</p>
                 )}
               </div>
-              {profile.is_admin && (
+              {shouldShowAdminFeatures(profile.is_admin, adminUIMode) && (
                 <div className="pt-2">
                   <Badge variant="default">Administrator</Badge>
                 </div>
@@ -263,7 +266,7 @@ export function DashboardContent() {
               <CardDescription>Common tasks and links</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {profile.is_admin && (
+              {shouldShowAdminFeatures(profile.is_admin, adminUIMode) && (
                 <a
                   href="/admin/invite"
                   className="block w-full p-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"

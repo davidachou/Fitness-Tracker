@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BarChart3, Sparkles } from "lucide-react";
 import { format } from "date-fns";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type PollOption = { id: string; label: string; votes: number };
 type Poll = {
@@ -46,6 +48,7 @@ export default function PollsPage() {
   const [userVotes, setUserVotes] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingPollId, setEditingPollId] = useState<string | null>(null);
+  const { adminUIMode } = useAdminUIMode();
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
@@ -404,7 +407,7 @@ export default function PollsPage() {
                         </div>
                       );
                     })}
-                    {isAdmin && (
+                    {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => startEdit(poll)}>
                           Edit

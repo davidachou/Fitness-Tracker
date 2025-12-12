@@ -20,6 +20,8 @@ import {
   Link2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +43,7 @@ export default function QuickLinksPage() {
   const [form, setForm] = useState<Partial<QuickLink>>({ icon: "Folder" });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const { adminUIMode } = useAdminUIMode();
   const iconOptions = useMemo(() => ["Folder", "Receipt", "Clock", "Shield", "Link", "Zap"], []);
   const iconMap = useMemo(
     () => ({
@@ -126,7 +129,7 @@ export default function QuickLinksPage() {
         <p className="text-muted-foreground">
           One-click buttons to the tools you hit daily. Admins can edit here; everyone can use them.
         </p>
-        {isAdmin && (
+        {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -177,7 +180,7 @@ export default function QuickLinksPage() {
         ))}
       </div>
 
-      {isAdmin && (
+      {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
       <Card className="border-border bg-card text-foreground backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

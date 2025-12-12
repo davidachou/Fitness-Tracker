@@ -22,6 +22,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type PostType = "internal" | "linkedin";
 
@@ -50,6 +52,7 @@ export default function WinsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isEditorEmpty, setIsEditorEmpty] = useState(true);
+  const { adminUIMode } = useAdminUIMode();
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -243,71 +246,73 @@ export default function WinsPage() {
         <p className="text-muted-foreground">
           Capture new hires, Friday wins, and lessons learned with rich text.
         </p>
-        {isAdmin && <p className="text-xs text-muted-foreground">Admin: you can edit or delete any post.</p>}
+        {shouldShowAdminFeatures(isAdmin, adminUIMode) && <p className="text-xs text-muted-foreground">Admin: you can edit or delete any post.</p>}
       </header>
 
-      <Card className="border-white/10 bg-white/5 backdrop-blur">
-        <CardHeader>
-          <CardTitle>{editingId ? "Edit Post" : "New Post"}</CardTitle>
-          <CardDescription>
-            {editingId
-              ? "Admin editing mode. Save changes or cancel."
-              : "Authenticated users can publish instantly."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Tabs value={postType} onValueChange={(val) => setPostType(val as PostType)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="internal">Internal update</TabsTrigger>
-              <TabsTrigger value="linkedin">Embed LinkedIn</TabsTrigger>
-            </TabsList>
-          </Tabs>
+      {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
+        <Card className="border-white/10 bg-white/5 backdrop-blur">
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit Post" : "New Post"}</CardTitle>
+            <CardDescription>
+              {editingId
+                ? "Admin editing mode. Save changes or cancel."
+                : "Authenticated users can publish instantly."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Tabs value={postType} onValueChange={(val) => setPostType(val as PostType)} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="internal">Internal update</TabsTrigger>
+                <TabsTrigger value="linkedin">Embed LinkedIn</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-          <Input
-            placeholder={postType === "linkedin" ? "Optional title (e.g., Campaign launch)" : "Post title"}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
-          />
-
-          <Input
-            placeholder="Image URL (optional)"
-            value={image}
-            onChange={(e) => setImage(e.target.value)}
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
-          />
-
-          {postType === "linkedin" ? (
             <Input
-              placeholder="LinkedIn post URL (public)"
-              value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder={postType === "linkedin" ? "Optional title (e.g., Campaign launch)" : "Post title"}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
             />
-          ) : (
-            <div className="relative rounded-xl border border-border bg-background text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white">
-              {isEditorEmpty && (
-                <span className="pointer-events-none absolute left-3 top-3 text-sm text-muted-foreground">
-                  Share the win, the lesson, or the celebration…
-                </span>
-              )}
-              <EditorContent editor={editor} className="prose prose-invert max-w-none p-3 text-sm" />
-            </div>
-          )}
 
-          <div className="flex gap-2">
-            <Button onClick={handleSubmit} className="gap-2" disabled={isSaving}>
-              <Upload className="h-4 w-4" />
-              {editingId ? "Save changes" : postType === "linkedin" ? "Add LinkedIn post" : "Publish"}
-            </Button>
-            {editingId && (
-              <Button variant="ghost" onClick={handleCancelEdit} className="gap-2">
-                <X className="h-4 w-4" /> Cancel
-              </Button>
+            <Input
+              placeholder="Image URL (optional)"
+              value={image}
+              onChange={(e) => setImage(e.target.value)}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
+            />
+
+            {postType === "linkedin" ? (
+              <Input
+                placeholder="LinkedIn post URL (public)"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/60"
+              />
+            ) : (
+              <div className="relative rounded-xl border border-border bg-background text-foreground dark:border-white/20 dark:bg-white/10 dark:text-white">
+                {isEditorEmpty && (
+                  <span className="pointer-events-none absolute left-3 top-3 text-sm text-muted-foreground">
+                    Share the win, the lesson, or the celebration…
+                  </span>
+                )}
+                <EditorContent editor={editor} className="prose prose-invert max-w-none p-3 text-sm" />
+              </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+
+            <div className="flex gap-2">
+              <Button onClick={handleSubmit} className="gap-2" disabled={isSaving}>
+                <Upload className="h-4 w-4" />
+                {editingId ? "Save changes" : postType === "linkedin" ? "Add LinkedIn post" : "Publish"}
+              </Button>
+              {editingId && (
+                <Button variant="ghost" onClick={handleCancelEdit} className="gap-2">
+                  <X className="h-4 w-4" /> Cancel
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-px bg-gradient-to-b from-primary/50 via-transparent to-transparent" />
@@ -342,7 +347,7 @@ export default function WinsPage() {
                     <CardDescription>
                       By {post.author ?? "Unknown"} • {format(new Date(post.date), "MMM d, yyyy")}
                     </CardDescription>
-                    {isAdmin && (
+                    {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"

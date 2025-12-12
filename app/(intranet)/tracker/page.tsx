@@ -18,6 +18,8 @@ import { TimeTimeline, TimelineEntry, EditEntryInput } from "@/components/tracke
 import { ReportsModal } from "@/components/tracker/ReportsModal";
 import { BatchEntryDialog, BatchEntryInput } from "@/components/tracker/BatchEntryDialog";
 import { useTimerStore } from "@/components/tracker/useTimerStore";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 const UNASSIGNED_PROJECT_ID = "00000000-0000-0000-0000-000000000002";
 const UNASSIGNED_PROJECT_NAME = "Unassigned";
@@ -36,6 +38,7 @@ export default function TrackerPage() {
   const [projectForm, setProjectForm] = useState({ clientId: "", name: "", billable: true });
   const [archiveClientId, setArchiveClientId] = useState<string>("");
   const [archiveProjectId, setArchiveProjectId] = useState<string>("");
+  const { adminUIMode } = useAdminUIMode();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -630,7 +633,7 @@ export default function TrackerPage() {
         isDeleting={deleteEntryMutation.isPending}
       />
 
-      {isAdmin && (
+      {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
         <Card className="border-dashed border-primary/30 bg-card/80">
           <CardHeader>
             <CardTitle>Admin · Clients & Projects</CardTitle>

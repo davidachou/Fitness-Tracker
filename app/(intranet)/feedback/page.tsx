@@ -18,6 +18,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { sampleFeedback } from "@/lib/sample-data";
 import { toast } from "sonner";
 import { MessageSquare, Send, Pencil, Trash2, X } from "lucide-react";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type FeedbackKind = "client" | "employee";
 
@@ -43,6 +45,7 @@ export default function FeedbackPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const { adminUIMode } = useAdminUIMode();
 
   useEffect(() => {
     const supabase = createClient();
@@ -84,7 +87,7 @@ export default function FeedbackPage() {
 
   const filtered = entries.filter((e) => e.kind === tab);
 
-  const canEdit = (entry: Feedback) => isAdmin || (!!userId && entry.user_id === userId);
+  const canEdit = (entry: Feedback) => shouldShowAdminFeatures(isAdmin, adminUIMode) || (!!userId && entry.user_id === userId);
 
   const submit = async () => {
     const supabase = createClient();

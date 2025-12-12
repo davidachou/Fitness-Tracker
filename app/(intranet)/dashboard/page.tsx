@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { sampleQuickLinks, sampleProjects, sampleTeamMembers, sampleWins, sampleFeedback } from "@/lib/sample-data";
 import { ArrowUpRight, Flame, Link2, MessageSquare, Trophy, KanbanSquare, Users, X } from "lucide-react";
 import { toast } from "sonner";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
+import { shouldShowAdminFeatures } from "@/lib/utils";
 
 type QuickLink = (typeof sampleQuickLinks)[number];
 type PollOption = { label: string; votes: number | null };
@@ -27,6 +29,7 @@ type Announcement = { id: string; message: string; created_at: string; user_id?:
 export default function DashboardPage() {
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(sampleQuickLinks);
   const [isAdmin, setIsAdmin] = useState(false);
+  const { adminUIMode } = useAdminUIMode();
   const [stats, setStats] = useState({
     team: sampleTeamMembers.length,
     projects: sampleProjects.length,
@@ -204,7 +207,7 @@ export default function DashboardPage() {
                 Explore knowledge hub <ArrowUpRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            {isAdmin && (
+            {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
               <Button asChild size="lg">
                 <Link href="/admin/invite">
                   Invite teammates <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -323,7 +326,7 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      {isAdmin && (
+      {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
         <Card className="border-border bg-card text-foreground backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-white">
           <CardHeader>
             <CardTitle>Manage announcements</CardTitle>

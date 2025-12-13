@@ -84,6 +84,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Profile created via API:', newProfile)
+    console.log('User metadata at creation:', user.user_metadata)
+    console.log('Has invite data:', hasInviteData)
 
     return NextResponse.json({
       success: true,

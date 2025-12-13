@@ -49,7 +49,7 @@ export default function BootstrapPage() {
           <h3 className="font-semibold mb-2">🔒 Security Note</h3>
           <p className="text-sm text-gray-600">
             This bootstrap page is temporary and will be removed once the first admin account is created.
-            The invite system ensures only authorized personnel can access the intranet.
+            The invite system ensures only authorized clients and trainers can access the fitness tracker.
           </p>
         </div>
       </div>

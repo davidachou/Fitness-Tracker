@@ -115,7 +115,10 @@ export async function POST(request: NextRequest) {
         )
 
       if (profileInsertError) {
-        console.warn('Profile insert warning after invite (will rely on auth callback fallback):', profileInsertError)
+        console.error('Profile insert FAILED after invite:', profileInsertError)
+        // Don't return error - continue and let auth callback handle it
+      } else {
+        console.log('Profile created successfully during invite for user:', invitedUserId)
       }
     } else {
       console.warn('Invite succeeded but no user id returned; profile will be created on auth callback.')

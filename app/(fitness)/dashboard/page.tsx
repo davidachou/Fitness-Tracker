@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(sampleQuickLinks);
   const [isAdmin, setIsAdmin] = useState(false);
   const { adminUIMode } = useAdminUIMode();
+  const [profileChecked, setProfileChecked] = useState(false);
   const [stats, setStats] = useState({
     team: sampleTeamMembers.length,
     projects: sampleProjects.length,
@@ -139,6 +140,49 @@ export default function DashboardPage() {
     fetchAnnouncements();
     loadLatestPoll();
   }, []);
+
+  // Check and create profile for invited users
+  useEffect(() => {
+    const checkAndCreateProfile = async () => {
+      if (profileChecked) return;
+
+      const supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) return;
+
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (!existingProfile) {
+        // Create profile using the API
+        console.log('Creating profile for invited user:', user.email);
+        const response = await fetch('/api/dashboard/create-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            email: user.email,
+            userMetadata: user.user_metadata
+          })
+        });
+
+        if (response.ok) {
+          console.log('Profile created successfully');
+        } else {
+          console.error('Failed to create profile:', await response.text());
+        }
+      }
+
+      setProfileChecked(true);
+    };
+
+    checkAndCreateProfile();
+  }, [profileChecked]);
 
   const saveAnnouncement = async () => {
     const supabase = createClient();

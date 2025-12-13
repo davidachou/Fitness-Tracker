@@ -4,19 +4,19 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
 
-export default function IntranetLayout({
+export default function FitnessLayout({
   children,
 }: {
   children: ReactNode;
 }) {
   return (
     <Suspense fallback={null}>
-      <IntranetLayoutContent>{children}</IntranetLayoutContent>
+      <FitnessLayoutContent>{children}</FitnessLayoutContent>
     </Suspense>
   );
 }
 
-async function IntranetLayoutContent({
+async function FitnessLayoutContent({
   children,
 }: {
   children: ReactNode;

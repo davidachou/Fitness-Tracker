@@ -15,32 +15,31 @@ export default async function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-900 to-black text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(239,68,68,0.12),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(249,115,22,0.12),transparent_28%)]" />
+    <main className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-accent/20">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--accent)/0.08),transparent_32%),radial-gradient(circle_at_80%_0%,hsl(var(--primary)/0.08),transparent_28%)]" />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 py-12">
-        <Card className="w-full border-white/10 bg-white/5 backdrop-blur">
+        <Card className="w-full border-border/50 bg-card/80 backdrop-blur shadow-lg">
           <CardHeader className="space-y-2 text-center">
-            <CardTitle className="text-3xl font-black text-white">KK Advisory Intranet</CardTitle>
-            <CardDescription className="text-base text-white/70">
-              Private workspace for KK Advisory team members. Access requires a company Google
-              account and an active invite.
+            <CardTitle className="text-3xl font-black text-foreground">Fitness Tracker</CardTitle>
+            <CardDescription className="text-base text-muted-foreground">
+              Your personal fitness tracking workspace. Access requires a Google account
+              and an active invite.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 text-center text-sm text-white/70">
+          <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
             <p>
-              If you have an invite, sign in with your KK Advisory Google account to continue. If you
+              If you have an invite, sign in with your Google account to continue. If you
               need access, contact an administrator to request an invite.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Button asChild size="lg" className="bg-white text-black hover:bg-white/90">
+              <Button asChild size="lg">
                 <Link href="/auth/login">Sign in with Google</Link>
               </Button>
               <Button
                 variant="outline"
-                className="border-white/40 text-white hover:bg-white/10"
                 asChild
               >
-                <Link href="mailto:david@kkadvisory.org?subject=Intranet%20Access%20Request">
+                <Link href="mailto:admin@yourdomain.com?subject=Fitness%20Tracker%20Access%20Request">
                   Request access
                 </Link>
               </Button>

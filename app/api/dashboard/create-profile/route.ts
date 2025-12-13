@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
                 'Team Member'
 
     // Check if user should be admin (explicit allow-list or invite flag)
-    const ADMIN_ALLOW_LIST = ['david@kkadvisory.org']
+    // TODO: Update this with your admin email address
+    const ADMIN_ALLOW_LIST = ['admin@yourdomain.com']
     const isAdmin =
       ADMIN_ALLOW_LIST.includes(email!) ||
       user.user_metadata?.invite_is_admin === true

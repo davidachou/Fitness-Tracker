@@ -13,10 +13,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 interface InviteFormData {
   email: string
   fullName: string
-  role: string
-  expertise: string
-  slackUrl: string
-  linkedinUrl: string
   bio: string
   isAdmin: boolean
 }
@@ -28,10 +24,6 @@ export function InviteForm() {
   const [formData, setFormData] = useState<InviteFormData>({
     email: '',
     fullName: '',
-    role: '',
-    expertise: '',
-    slackUrl: '',
-    linkedinUrl: '',
     bio: '',
     isAdmin: false
   })
@@ -42,15 +34,14 @@ export function InviteForm() {
     setError(null)
     setSuccess(null)
 
-    // Validate domain
-    // TEMPORARY FOR TESTING: Allow Gmail domains to test invite flow
-    // TODO: Revert after testing - uncomment the line below and comment out the current line
-    // if (!formData.email.endsWith('@kkadvisory.org')) {
-    if (!formData.email.endsWith('@kkadvisory.org') && !formData.email.endsWith('@gmail.com')) {
-      setError('Only @kkadvisory.org and @gmail.com emails are allowed (Gmail for testing)')
-      setIsLoading(false)
-      return
-    }
+    // Domain validation disabled - allow any email domain
+    // const allowedDomains = ['@gmail.com', '@yourdomain.com'] // Update with your domains
+    // const isValidDomain = allowedDomains.some(domain => formData.email.endsWith(domain))
+    // if (!isValidDomain) {
+    //   setError(`Only emails from allowed domains are permitted. Allowed: ${allowedDomains.join(', ')}`)
+    //   setIsLoading(false)
+    //   return
+    // }
 
     try {
       const response = await fetch('/api/admin/invite', {
@@ -61,10 +52,6 @@ export function InviteForm() {
         body: JSON.stringify({
           email: formData.email,
           fullName: formData.fullName,
-          role: formData.role,
-          expertise: formData.expertise.split(',').map(tag => tag.trim()).filter(Boolean),
-          slackUrl: formData.slackUrl,
-          linkedinUrl: formData.linkedinUrl,
           bio: formData.bio,
           isAdmin: formData.isAdmin
         }),
@@ -81,10 +68,6 @@ export function InviteForm() {
       setFormData({
         email: '',
         fullName: '',
-        role: '',
-        expertise: '',
-        slackUrl: '',
-        linkedinUrl: '',
         bio: '',
         isAdmin: false
       })
@@ -110,7 +93,7 @@ export function InviteForm() {
       <CardHeader>
         <CardTitle>Send Invite</CardTitle>
         <CardDescription>
-          Create a new team member profile and send them an invite link.
+          Create a new client profile and send them an invite link.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -121,7 +104,7 @@ export function InviteForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="user@kkadvisory.org (or gmail.com for testing)"
+                placeholder="user@yourdomain.com"
                 value={formData.email}
                 onChange={handleInputChange('email')}
                 required
@@ -139,62 +122,21 @@ export function InviteForm() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role *</Label>
-            <Input
-              id="role"
-              placeholder="Healthcare Consultant"
-              value={formData.role}
-              onChange={handleInputChange('role')}
-              required
-            />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="bio">Bio (optional)</Label>
             <Textarea
               id="bio"
-              placeholder="Leads KK Advisory with strategic direction and client stewardship."
+              placeholder="Tell us about the client's fitness goals and background."
               value={formData.bio}
               onChange={handleInputChange('bio')}
               rows={3}
             />
-            <p className="text-xs text-muted-foreground">Appears on the Team page.</p>
+            <p className="text-xs text-muted-foreground">Optional information about the client.</p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="expertise">Expertise (comma-separated)</Label>
-            <Textarea
-              id="expertise"
-              placeholder="Healthcare Strategy, Data Analytics, Compliance"
-              value={formData.expertise}
-              onChange={handleInputChange('expertise')}
-              rows={3}
-            />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="slackUrl">Slack URL (optional)</Label>
-            <Input
-              id="slackUrl"
-              placeholder="slack://user?team=YOUR_TEAM&id=USER_ID"
-              value={formData.slackUrl}
-              onChange={handleInputChange('slackUrl')}
-            />
-            <p className="text-xs text-muted-foreground">
-              Right-click user in Slack → Copy link to get the URL format
-            </p>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="linkedinUrl">LinkedIn URL (optional)</Label>
-            <Input
-              id="linkedinUrl"
-              placeholder="https://linkedin.com/in/username"
-              value={formData.linkedinUrl}
-              onChange={handleInputChange('linkedinUrl')}
-            />
-          </div>
 
           <div className="flex items-center space-x-2 rounded-lg border border-border/60 bg-muted/40 p-3">
             <Checkbox
@@ -208,9 +150,9 @@ export function InviteForm() {
               }
             />
             <div className="space-y-0.5">
-              <Label htmlFor="isAdmin">Make admin</Label>
+              <Label htmlFor="isAdmin">Make administrator</Label>
               <p className="text-xs text-muted-foreground">
-                Leave unchecked to invite as a regular member.
+                Leave unchecked to invite as a client.
               </p>
             </div>
           </div>

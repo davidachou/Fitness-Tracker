@@ -52,6 +52,18 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        gradient: {
+          "1": "hsl(var(--gradient-1))",
+          "2": "hsl(var(--gradient-2))",
+          "3": "hsl(var(--gradient-3))",
+          "4": "hsl(var(--gradient-4))",
+        },
+        pop: {
+          "1": "hsl(var(--pop-1))",
+          "2": "hsl(var(--pop-2))",
+          "3": "hsl(var(--pop-3))",
+          "4": "hsl(var(--pop-4))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

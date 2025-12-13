@@ -177,7 +177,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <section
-        className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-sky-100/80 via-teal-50/70 to-lime-50/60 p-8 text-foreground shadow-2xl dark:border-white/10 dark:from-red-700/30 dark:via-orange-600/20 dark:to-amber-500/15 dark:text-white"
+        className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-pop-2/30 via-primary/30 to-pop-1/40 p-8 text-foreground shadow-2xl dark:border-border dark:from-pop-2/25 dark:via-primary/25 dark:to-pop-1/30"
         data-tour="tour-hero"
       >
         <motion.div
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         >
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-foreground">
             <Flame className="h-4 w-4 text-primary dark:text-amber-300" />
-            KK Advisory Intranet
+            Fitness Tracker
           </div>
           <h1 className="text-4xl font-black leading-tight sm:text-5xl">
             Everything the team needs, in one focused workspace.
@@ -210,7 +210,7 @@ export default function DashboardPage() {
             {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
               <Button asChild size="lg">
                 <Link href="/admin/invite">
-                  Invite teammates <ArrowUpRight className="ml-2 h-4 w-4" />
+                  Add Clients <ArrowUpRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             )}
@@ -223,7 +223,7 @@ export default function DashboardPage() {
         <StatCard
           title="Active projects"
           value={stats.projects}
-          accent="from-teal-300/60 via-sky-200/60 to-lime-200/60 dark:from-amber-500/60 dark:to-orange-500/60"
+          accent="from-pop-1/70 via-pop-3/30 to-pop-2/70"
           href="/projects"
           dataTour="tour-stat-projects"
           icon={KanbanSquare}
@@ -231,7 +231,7 @@ export default function DashboardPage() {
         <StatCard
           title="Wins logged"
           value={stats.wins}
-          accent="from-lime-300/60 via-teal-200/60 to-sky-200/60 dark:from-rose-500/60 dark:to-red-600/60"
+          accent="from-pop-1/60 via-secondary/30 to-pop-2/80"
           href="/wins"
           dataTour="tour-stat-wins"
           icon={Trophy}
@@ -239,7 +239,7 @@ export default function DashboardPage() {
         <StatCard
           title="Client feedback"
           value={stats.feedbackClient}
-          accent="from-sky-300/60 via-indigo-300/50 to-blue-300/60 dark:from-purple-500/60 dark:to-blue-500/60"
+          accent="from-pop-3/60 via-gradient-3/30 to-pop-2/75"
           href="/feedback"
           dataTour="tour-stat-feedback-client"
           icon={MessageSquare}
@@ -247,7 +247,7 @@ export default function DashboardPage() {
         <StatCard
           title="Employee feedback"
           value={stats.feedbackEmployee}
-          accent="from-blue-300/60 via-cyan-300/50 to-teal-300/60 dark:from-blue-500/60 dark:to-teal-500/60"
+          accent="from-pop-4/60 via-primary/35 to-pop-2/80"
           href="/feedback"
           dataTour="tour-stat-feedback-employee"
           icon={Users}
@@ -416,9 +416,9 @@ function StatCard({
 function GradientOrbs() {
   return (
     <div className="pointer-events-none absolute inset-0">
-      <div className="absolute right-10 top-10 h-28 w-28 animate-pulse rounded-full bg-sky-300/40 blur-3xl dark:bg-orange-400/40" />
-      <div className="absolute -left-10 bottom-0 h-40 w-40 animate-pulse rounded-full bg-teal-200/40 blur-3xl dark:bg-red-500/30" />
-    <div className="absolute left-20 top-5 h-32 w-32 animate-pulse rounded-full bg-lime-200/40 blur-3xl dark:bg-amber-400/30" />
-  </div>
-);
+      <div className="absolute right-10 top-10 h-28 w-28 animate-pulse rounded-full bg-pop-1/30 blur-3xl" />
+      <div className="absolute -left-10 bottom-0 h-40 w-40 animate-pulse rounded-full bg-pop-2/25 blur-3xl" />
+      <div className="absolute left-20 top-5 h-32 w-32 animate-pulse rounded-full bg-pop-4/20 blur-3xl" />
+    </div>
+  );
 }

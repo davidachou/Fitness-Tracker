@@ -4,59 +4,76 @@
 
 @layer base {
   :root {
-    /* Light theme: bright TRON (white/grey base with blue/teal + neon accents) */
-    --background: 0 0% 100%;
-    --foreground: 220 15% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 10%;
-    --primary: 191 97% 40%; /* teal/blue */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 200 15% 92%;
-    --secondary-foreground: 220 15% 15%;
-    --muted: 200 15% 92%;
-    --muted-foreground: 220 10% 38%;
-    --accent: 72 92% 65%; /* neon lime */
-    --accent-foreground: 220 20% 12%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 12% 85%;
-    --input: 220 12% 85%;
-    --ring: 191 97% 40%;
-    --chart-1: 191 97% 40%;
-    --chart-2: 199 89% 58%;
-    --chart-3: 72 92% 65%;
-    --chart-4: 48 96% 62%;
-    --chart-5: 0 84% 60%;
+    /* Light theme: Elegant warm beige/cream with earth tones */
+    --background: 45 15% 94%; /* #F0EFEB - warm cream */
+    --foreground: 80 45% 15%; /* #283618 - deep forest green */
+    --card: 45 15% 96%; /* slightly lighter cream */
+    --card-foreground: 80 45% 15%;
+    --popover: 45 15% 96%;
+    --popover-foreground: 80 45% 15%;
+    --primary: 35 25% 35%; /* #8B7355 - warm brown */
+    --primary-foreground: 45 20% 95%; /* #F5F2EB - cream */
+    --secondary: 45 20% 88%; /* #E4D5B7 - warm beige */
+    --secondary-foreground: 80 45% 15%;
+    --muted: 45 15% 85%; /* #D8D2C2 - muted beige */
+    --muted-foreground: 80 25% 35%; /* #5A5A4A - muted green */
+    --accent: 35 30% 45%; /* #A0816C - warm taupe */
+    --accent-foreground: 45 20% 95%;
+    --destructive: 0 65% 45%; /* #B91C1C - muted red */
+    --destructive-foreground: 45 20% 95%;
+    --border: 45 15% 80%; /* #CCC8B8 - warm border */
+    --input: 45 15% 82%; /* #D1CDBD - warm input */
+    --ring: 35 25% 35%; /* #8B7355 - warm brown */
+    --chart-1: 35 25% 35%; /* primary brown */
+    --chart-2: 25 35% 45%; /* warm olive */
+    --chart-3: 15 40% 40%; /* deep bronze */
+    --chart-4: 45 30% 35%; /* warm tan */
+    --chart-5: 55 25% 40%; /* muted gold */
+    --gradient-1: 35 40% 65%; /* warm gold */
+    --gradient-2: 45 35% 60%; /* rich beige */
+    --gradient-3: 25 45% 50%; /* deep amber */
+    --gradient-4: 15 50% 45%; /* bronze */
+    --pop-1: 42 55% 68%; /* champagne gold */
+    --pop-2: 10 45% 25%; /* deep espresso */
+    --pop-3: 65 45% 60%; /* sage green */
+    --pop-4: 30 40% 50%; /* rich copper */
     --radius: 0.5rem;
   }
+
   .dark {
-    /* Dark theme: red/orange/black */
-    --background: 0 0% 4%;
-    --foreground: 0 0% 96%;
-    --card: 0 0% 6%;
-    --card-foreground: 0 0% 96%;
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 96%;
-    --primary: 14 100% 57%; /* orange-red */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 96%;
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 70%;
-    --accent: 17 88% 55%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
-    --ring: 14 100% 57%;
-    --chart-1: 14 100% 57%;
-    --chart-2: 25 95% 55%;
-    --chart-3: 0 75% 55%;
-    --chart-4: 17 88% 55%;
-    --chart-5: 30 95% 60%;
+    /* Dark theme: Elegant warm browns with golden accents */
+    --background: 35 25% 25%; /* #4A3F33 - deep warm brown */
+    --foreground: 45 30% 85%; /* #EAD2A8 - warm cream */
+    --card: 35 20% 28%; /* #4F4437 - slightly lighter brown */
+    --card-foreground: 45 30% 85%;
+    --popover: 35 20% 28%;
+    --popover-foreground: 45 30% 85%;
+    --primary: 35 30% 55%; /* #A0816C - warm taupe */
+    --primary-foreground: 45 20% 95%; /* #F5F2EB - cream */
+    --secondary: 35 25% 35%; /* #5D4E3F - muted brown */
+    --secondary-foreground: 45 30% 85%;
+    --muted: 35 20% 32%; /* #564A3D - muted brown */
+    --muted-foreground: 45 25% 70%; /* #DACAA4 - warm beige */
+    --accent: 45 35% 65%; /* #B49B7A - warm gold */
+    --accent-foreground: 45 20% 95%;
+    --destructive: 0 60% 55%; /* #DC2626 - muted red */
+    --destructive-foreground: 45 20% 95%;
+    --border: 35 20% 38%; /* #6B5F4D - warm border */
+    --input: 35 20% 35%; /* #625742 - warm input */
+    --ring: 35 30% 55%; /* #A0816C - warm taupe */
+    --chart-1: 35 30% 55%; /* primary taupe */
+    --chart-2: 45 35% 60%; /* warm gold */
+    --chart-3: 25 40% 50%; /* deep bronze */
+    --chart-4: 15 45% 45%; /* rich brown */
+    --chart-5: 55 30% 55%; /* muted gold */
+    --gradient-1: 45 45% 70%; /* warm gold */
+    --gradient-2: 35 40% 60%; /* rich taupe */
+    --gradient-3: 25 50% 55%; /* deep amber */
+    --gradient-4: 15 55% 50%; /* bronze */
+    --pop-1: 38 50% 68%; /* luminous gold */
+    --pop-2: 15 35% 22%; /* near-black espresso */
+    --pop-3: 65 45% 70%; /* soft sage */
+    --pop-4: 28 60% 45%; /* deep copper */
   }
 }
 

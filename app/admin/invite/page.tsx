@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { InviteForm } from '@/components/invite-form'
 
 // Hardcoded admin allow-list for initial access
-const ADMIN_ALLOW_LIST = ['david@kkadvisory.org']
+// TODO: Update this with your admin email address
+const ADMIN_ALLOW_LIST = ['admin@yourdomain.com']
 
 export default async function AdminInvitePage() {
   const supabase = await createClient()
@@ -30,9 +31,9 @@ export default async function AdminInvitePage() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Invite Team Members</h1>
+        <h1 className="text-3xl font-bold mb-8">Add New Client</h1>
         <p className="text-muted-foreground mb-6">
-          Send invites to new team members. Only @kkadvisory.org and @gmail.com emails are allowed (Gmail for testing).
+          Send invites to new fitness clients. Configure allowed email domains in the code.
         </p>
 
         <InviteForm />

@@ -21,7 +21,8 @@ import {
   LogOut,
   Sparkles,
   UserCircle2,
-  Timer,
+  Activity,
+  Dumbbell,
   Megaphone,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -31,9 +32,9 @@ import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { AdminUIToggle } from "@/components/admin-ui-toggle";
 import { toast } from "sonner";
-import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
+// import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
 import { Card, CardContent } from "@/components/ui/card";
-import { TimerBadge } from "@/components/tracker/TimerBadge";
+// import { TimerBadge } from "@/components/tracker/TimerBadge";
 
 type AppShellProps = {
   user: {
@@ -66,7 +67,8 @@ const navItems: { href: string; label: string; icon: React.ComponentType<{ class
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/booking", label: "Bookings", icon: CalendarDays, status: "placeholder" },
   { href: "/polls", label: "Polls", icon: BarChart4 },
-  { href: "/tracker", label: "Time Tracker", icon: Timer },
+  { href: "/fitness", label: "Fitness", icon: Activity },
+  { href: "/exercises", label: "Exercises", icon: Dumbbell },
 ];
 
 type TourStep = {
@@ -172,11 +174,11 @@ const tourSteps: TourStep[] = [
     href: "/polls",
   },
   {
-    id: "tour-tracker",
-    title: "Time tracker",
-    body: "Start timers, log entries, manage tasks, and run reports by client.",
-    selector: "[data-tour-nav='tracker']",
-    href: "/tracker",
+    id: "tour-fitness",
+    title: "Fitness",
+    body: "View your workout library, track active sessions, and review progress history.",
+    selector: "[data-tour-nav='fitness']",
+    href: "/fitness",
   },
 ];
 
@@ -334,7 +336,7 @@ export function AppShell({ user, children }: AppShellProps) {
               whileHover={{ x: 6, scale: 1.01 }}
               className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
                 active
-                  ? "bg-gradient-to-r from-sky-200/70 via-teal-200/70 to-lime-200/70 text-foreground border border-primary/30 shadow-lg shadow-primary/10 dark:from-red-600/25 dark:via-orange-500/25 dark:to-amber-500/25 dark:border-red-500/40 dark:shadow-red-600/10"
+                  ? "bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 text-foreground border border-primary/30 shadow-lg shadow-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
@@ -345,8 +347,8 @@ export function AppShell({ user, children }: AppShellProps) {
                   <span
                     className={`rounded-full px-2 py-[2px] text-[10px] font-semibold leading-tight ${
                       status === "in-progress"
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-200"
-                        : "bg-slate-500/15 text-slate-800 dark:text-slate-200"
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted/50 text-muted-foreground"
                     }`}
                   >
                     {status === "in-progress" ? "In progress" : "Placeholder"}
@@ -356,7 +358,7 @@ export function AppShell({ user, children }: AppShellProps) {
               {active && (
                 <motion.span
                   layoutId="activeNav"
-                  className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-sky-200/70 via-teal-200/60 to-lime-200/60 dark:from-red-700/20 dark:via-orange-600/20 dark:to-amber-500/20"
+                  className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10"
                   transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
                 />
               )}
@@ -371,11 +373,11 @@ export function AppShell({ user, children }: AppShellProps) {
   const CONTENT_OFFSET = 40; // push content slightly below the banner
 
   return (
-    <RealtimeTimerProvider userId={user.id}>
+    <div>
       <div className="min-h-screen bg-background text-foreground" style={{ paddingTop: BANNER_HEIGHT + CONTENT_OFFSET }}>
         <div className="fixed inset-x-0 top-0 z-50" style={{ height: BANNER_HEIGHT }}>
           <Card
-            className="h-full rounded-none border-0 bg-white text-primary shadow-md dark:bg-black dark:text-primary"
+            className="h-full rounded-none border-0 bg-card text-primary shadow-md"
             data-tour="announcement-bar"
           >
             <CardContent className="flex h-full items-center gap-2 overflow-hidden px-3 py-0">
@@ -403,11 +405,11 @@ export function AppShell({ user, children }: AppShellProps) {
             </CardContent>
           </Card>
         </div>
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsla(var(--primary),0.16),transparent_32%),radial-gradient(circle_at_80%_0%,hsla(var(--accent),0.18),transparent_28%),radial-gradient(circle_at_60%_80%,hsla(var(--primary),0.14),transparent_35%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(239,68,68,0.14),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(249,115,22,0.14),transparent_28%),radial-gradient(circle_at_60%_80%,rgba(59,7,11,0.35),transparent_35%)]" />
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.08),transparent_32%),radial-gradient(circle_at_80%_0%,hsl(var(--accent)/0.06),transparent_28%),radial-gradient(circle_at_60%_80%,hsl(var(--secondary)/0.05),transparent_35%)]" />
         <div className="relative z-10 mx-auto mt-6 flex max-w-7xl gap-6 px-4 pb-6 lg:mt-8 lg:pl-[320px] lg:pr-8 lg:pb-8">
           <aside className="hidden lg:block">
             <div
-              className="fixed w-64 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-2xl backdrop-blur-xl"
+              className="fixed w-64 rounded-3xl border border-border/20 bg-card/80 p-4 shadow-2xl backdrop-blur-xl"
               style={{
                 top: BANNER_HEIGHT + CONTENT_OFFSET,
                 left: "calc((100vw - 80rem) / 2 + 2rem)",
@@ -423,7 +425,7 @@ export function AppShell({ user, children }: AppShellProps) {
                     {profile?.full_name || user.email}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {profile?.role || "KK Advisory"}
+                    {profile?.role || "Fitness Tracker"}
                   </p>
                 </div>
               </div>
@@ -452,7 +454,7 @@ export function AppShell({ user, children }: AppShellProps) {
                 </Button>
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-primary/70">
-                    KK Advisory Intranet
+                    Fitness Tracker
                   </p>
                   <h1 className="text-2xl font-bold text-foreground dark:text-white drop-shadow-sm">
                     Team Workspace
@@ -460,7 +462,6 @@ export function AppShell({ user, children }: AppShellProps) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <TimerBadge />
                 <div className="hidden sm:block text-sm text-muted-foreground">
                   Signed in as{" "}
                   <span className="font-semibold text-foreground">
@@ -477,7 +478,7 @@ export function AppShell({ user, children }: AppShellProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 border-primary/30 bg-gradient-to-r from-sky-200/80 via-teal-200/70 to-lime-200/80 text-foreground shadow-md shadow-primary/20 transition hover:shadow-lg hover:shadow-primary/30 dark:from-red-500/40 dark:via-orange-400/40 dark:to-amber-400/40 dark:text-white dark:hover:text-white dark:hover:shadow-red-500/30"
+                  className="gap-2 border-border/40 bg-gradient-to-r from-gradient-2/80 via-accent/60 to-gradient-1/80 text-foreground shadow-lg shadow-gradient-3/30 transition hover:shadow-2xl hover:shadow-gradient-3/40"
                   onClick={() => window.dispatchEvent(new CustomEvent("app-tour:start"))}
                 >
                   <Sparkles className="h-4 w-4" />
@@ -488,11 +489,11 @@ export function AppShell({ user, children }: AppShellProps) {
 
           <AnimatePresence>
             {isMobileNavOpen && (
-              <motion.div
+            <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="lg:hidden rounded-2xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur"
+                className="lg:hidden rounded-2xl border border-border/40 bg-card/90 p-4 shadow-xl backdrop-blur"
               >
                 {renderNav()}
                 <Button
@@ -506,7 +507,7 @@ export function AppShell({ user, children }: AppShellProps) {
             )}
           </AnimatePresence>
 
-          <main className="relative rounded-3xl border border-white/5 bg-white/5 p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
+          <main className="relative rounded-3xl border border-border/30 bg-card/90 p-4 sm:p-6 shadow-2xl shadow-gradient-3/20 backdrop-blur-xl">
             <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-white/5 via-white/0 to-white/5" />
             <div className="space-y-6">
               {children}
@@ -514,20 +515,20 @@ export function AppShell({ user, children }: AppShellProps) {
           </main>
         </div>
       </div>
-        {activeTourStep && (
-          <TourOverlay
-            step={activeTourStep}
-            stepIndex={tourIndex}
-            totalSteps={tourSteps.length}
-            onClose={finishTour}
-            onNext={nextTourStep}
-            onPrev={prevTourStep}
-            isLast={tourIndex === tourSteps.length - 1}
-            hasPrev={tourIndex > 0}
-          />
-        )}
-      </div>
-    </RealtimeTimerProvider>
+      {activeTourStep && (
+        <TourOverlay
+          step={activeTourStep}
+          stepIndex={tourIndex}
+          totalSteps={tourSteps.length}
+          onClose={finishTour}
+          onNext={nextTourStep}
+          onPrev={prevTourStep}
+          isLast={tourIndex === tourSteps.length - 1}
+          hasPrev={tourIndex > 0}
+        />
+      )}
+    </div>
+    </div>
   );
 }
 

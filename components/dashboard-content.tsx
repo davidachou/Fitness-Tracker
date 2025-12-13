@@ -17,7 +17,6 @@ interface Profile {
   email: string
   full_name: string
   role: string
-  expertise: string[]
   is_admin: boolean
   avatar_url?: string
 }
@@ -26,8 +25,6 @@ export function DashboardContent() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editingExpertise, setEditingExpertise] = useState(false)
-  const [newExpertise, setNewExpertise] = useState('')
   const router = useRouter()
   const { adminUIMode } = useAdminUIMode()
 
@@ -91,37 +88,6 @@ export function DashboardContent() {
     }
   }
 
-  const updateExpertise = async (newExpertise: string[]) => {
-    if (!profile) return
-
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('profiles')
-        .update({ expertise: newExpertise })
-        .eq('id', profile.id)
-
-      if (error) throw error
-
-      setProfile({ ...profile, expertise: newExpertise })
-    } catch (err) {
-      console.error('Failed to update expertise:', err)
-      setError('Failed to update expertise')
-    }
-  }
-
-  const addExpertise = async () => {
-    if (!newExpertise.trim()) return
-    const updated = [...(profile?.expertise || []), newExpertise.trim()]
-    await updateExpertise(updated)
-    setNewExpertise('')
-  }
-
-  const removeExpertise = async (index: number) => {
-    if (!profile?.expertise) return
-    const updated = profile.expertise.filter((_, i) => i !== index)
-    await updateExpertise(updated)
-  }
 
   React.useEffect(() => {
     loadDashboardData()
@@ -168,13 +134,13 @@ export function DashboardContent() {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Welcome to KK Advisory Services</h1>
-            <p className="text-muted-foreground mt-2">Team Intranet Dashboard</p>
+            <h1 className="text-3xl font-bold">Welcome to Fitness Tracker</h1>
+            <p className="text-muted-foreground mt-2">Your Personal Dashboard</p>
           </div>
           <div className="flex gap-4">
             <Link
               href="/"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              className="inline-flex items-center px-4 py-2 border border-border rounded-md shadow-sm text-sm font-medium text-foreground bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
             >
               ← Back to Home
             </Link>
@@ -187,7 +153,7 @@ export function DashboardContent() {
           <Card>
             <CardHeader>
               <CardTitle>Your Profile</CardTitle>
-              <CardDescription>Your team member information</CardDescription>
+              <CardDescription>Your profile information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -201,55 +167,6 @@ export function DashboardContent() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Role</label>
                 <p>{profile.role}</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-muted-foreground">Expertise</label>
-                  <button
-                    onClick={() => setEditingExpertise(!editingExpertise)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {editingExpertise ? 'Done' : 'Edit'}
-                  </button>
-                </div>
-                {profile.expertise && profile.expertise.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {profile.expertise.map((skill: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="relative">
-                        {skill}
-                        {editingExpertise && (
-                          <button
-                            onClick={() => removeExpertise(index)}
-                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                {editingExpertise && (
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      type="text"
-                      value={newExpertise}
-                      onChange={(e) => setNewExpertise(e.target.value)}
-                      placeholder="Add new expertise..."
-                      className="flex-1 px-2 py-1 text-sm border rounded"
-                      onKeyPress={(e) => e.key === 'Enter' && addExpertise()}
-                    />
-                    <button
-                      onClick={addExpertise}
-                      className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded hover:bg-primary/90"
-                    >
-                      Add
-                    </button>
-                  </div>
-                )}
-                {(!profile.expertise || profile.expertise.length === 0) && !editingExpertise && (
-                  <p className="text-sm text-muted-foreground mt-1">No expertise added yet.</p>
-                )}
               </div>
               {shouldShowAdminFeatures(profile.is_admin, adminUIMode) && (
                 <div className="pt-2">
@@ -271,7 +188,7 @@ export function DashboardContent() {
                   href="/admin/invite"
                   className="block w-full p-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                 >
-                  Invite Team Members
+                  Add Clients
                 </a>
               )}
               <div className="text-sm text-muted-foreground">
@@ -283,7 +200,7 @@ export function DashboardContent() {
 
         {/* Footer */}
         <div className="mt-12 text-center text-sm text-muted-foreground">
-          <p>© 2024 KK Advisory Services - Internal Team Portal</p>
+          <p>© 2024 Fitness Tracker</p>
         </div>
       </div>
     </div>

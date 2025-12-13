@@ -44,7 +44,7 @@ export function LoginForm({
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
-            Sign in with your KK Advisory Services Google account
+            Sign in with your Google account to access Fitness Tracker
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -85,8 +85,6 @@ export function LoginForm({
             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
             <div className="text-center text-sm text-muted-foreground">
-              Only @kkadvisory.org email addresses are allowed.
-              <br />
               Contact an administrator if you need access.
             </div>
           </div>

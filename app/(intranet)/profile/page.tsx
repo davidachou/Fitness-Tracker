@@ -171,7 +171,7 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
-            placeholder="Leads KK Advisory with strategic direction and client stewardship."
+            placeholder="Fitness enthusiast and wellness advocate."
             value={bioDraft}
             onChange={(e) => setBioDraft(e.target.value)}
             className="border-white/20 bg-white/10 text-white placeholder:text-white/70"

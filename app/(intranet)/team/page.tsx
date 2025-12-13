@@ -36,7 +36,7 @@ const localFallback: TeamMember[] = [
     id: "tm-kk",
     name: "Kristin Kelly",
     role: "Managing Director & Founder",
-    bio: "Leads KK Advisory with strategic direction and client stewardship.",
+    bio: "Fitness enthusiast and wellness advocate.",
     expertise: ["Leadership", "Strategy", "Client Advisory"],
     photo: "/team/Kristin Kelly.png",
     slack: "slack://user?team=ABC&id=KK1",

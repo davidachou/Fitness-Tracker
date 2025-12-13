@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // Hardcoded admin allow-list for initial access
-const ADMIN_ALLOW_LIST = ['david@kkadvisory.org']
+// TODO: Update this with your admin email address
+const ADMIN_ALLOW_LIST = ['admin@yourdomain.com']
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,20 +45,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const { email, fullName, role, expertise, slackUrl, linkedinUrl, bio, isAdmin: requestedAdmin } = await request.json()
+    const { email, fullName, bio, isAdmin: requestedAdmin } = await request.json()
 
     // Validate required fields
-    if (!email || !fullName || !role) {
-      return NextResponse.json({ error: 'Email, full name, and role are required' }, { status: 400 })
+    if (!email || !fullName) {
+      return NextResponse.json({ error: 'Email and full name are required' }, { status: 400 })
     }
 
-    // Validate domain
-    // TEMPORARY FOR TESTING: Allow Gmail domains to test invite flow
-    // TODO: Revert after testing - uncomment the line below and comment out the current line
-    // if (!email.endsWith('@kkadvisory.org')) {
-    if (!email.endsWith('@kkadvisory.org') && !email.endsWith('@gmail.com')) {
-      return NextResponse.json({ error: 'Only @kkadvisory.org and @gmail.com emails are allowed (Gmail for testing)' }, { status: 400 })
-    }
+    // Domain validation disabled - allow any email domain
+    // const allowedDomains = ['@gmail.com', '@yourdomain.com'] // Update with your domains
+    // const isValidDomain = allowedDomains.some(domain => email.endsWith(domain))
+    // if (!isValidDomain) {
+    //   return NextResponse.json({ error: `Only emails from allowed domains are permitted. Allowed: ${allowedDomains.join(', ')}` }, { status: 400 })
+    // }
 
     // Check if user already exists
     const { data: existingUser } = await adminSupabase
@@ -77,14 +77,12 @@ export async function POST(request: NextRequest) {
       data: {
         // Store invite data in separate fields to avoid OAuth override
         invite_full_name: fullName,
-        invite_role: role,
-        invite_expertise: Array.isArray(expertise) ? expertise : [],
+        invite_role: requestedAdmin ? 'Administrator' : 'Client',
         invite_is_admin: requestedAdmin === true,
         invite_bio: bioText || null,
         // Also set regular fields (may be overridden by OAuth)
         full_name: fullName,
-        role: role,
-        expertise: Array.isArray(expertise) ? expertise : [],
+        role: requestedAdmin ? 'Administrator' : 'Client',
         bio: bioText || null,
       }
     })
@@ -108,12 +106,9 @@ export async function POST(request: NextRequest) {
             id: invitedUserId,
             email,
             full_name: fullName,
-            role: isAdmin ? 'Administrator' : role,
-            expertise: Array.isArray(expertise) ? expertise : [],
+            role: isAdmin ? 'Administrator' : 'Client',
             is_admin: isAdmin,
             avatar_url: null,
-            slack: slackUrl || null,
-            linkedin: linkedinUrl || null,
             bio: bioText || null,
           },
           { onConflict: 'id' },

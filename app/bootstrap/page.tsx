@@ -16,7 +16,7 @@ export default function BootstrapPage() {
         <h1 className="text-3xl font-bold mb-8">🚀 Initial Admin Setup</h1>
 
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Welcome to KK Advisory Services Intranet</h2>
+          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Welcome to Fitness Tracker</h2>
           <p className="text-yellow-700 mb-4">
             This is an invite-only system. To get started, you need to create the first admin account by inviting yourself.
           </p>
@@ -29,8 +29,8 @@ export default function BootstrapPage() {
             </p>
           </div>
           <p className="text-yellow-700 text-sm">
-            <strong>Authorized admin:</strong> david@kkadvisory.org<br/>
-            <strong>Domain restriction:</strong> Only @kkadvisory.org emails allowed
+            <strong>Authorized admin:</strong> admin@yourdomain.com<br/>
+            <strong>Domain restriction:</strong> Configure your allowed email domains in the code
           </p>
         </div>
 

@@ -63,7 +63,8 @@ export function RealtimeTimerProvider({ userId, children }: RealtimeTimerProvide
 
       if (!isMounted) return;
       if (error) {
-        console.error("Active timer fetch failed", error);
+        // Silently ignore errors - table might not exist in fitness mode
+        // console.error("Active timer fetch failed", error);
       }
       setRunningTimer(mapTimer(data));
       setSyncing(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -19,14 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 
-type FitnessClient = {
-  id: string;
-  name: string;
-  email: string;
-};
 
 type Exercise = {
   id: string;
@@ -43,6 +37,15 @@ type WorkoutExercise = {
   weight?: number;
   rest_seconds: number;
   notes?: string;
+};
+
+type WorkoutExerciseFromDB = {
+  exercise_id: string;
+  sets: number;
+  reps: number;
+  weight: number | null;
+  rest_seconds: number;
+  notes: string | null;
 };
 
 type WorkoutFormData = {
@@ -112,22 +115,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
     },
   });
 
-  // Load workout data if editing
-  useEffect(() => {
-    if (workoutId && open) {
-      loadWorkoutData();
-    } else if (!workoutId && open) {
-      // Reset form for new workout
-      setFormData({
-        client_id: defaultClientId || "",
-        name: "",
-        description: "",
-        exercises: [],
-      });
-    }
-  }, [workoutId, open, defaultClientId]);
-
-  const loadWorkoutData = async () => {
+  const loadWorkoutData = useCallback(async () => {
     if (!workoutId) return;
 
     const { data: workout, error: workoutError } = await supabase
@@ -158,16 +146,31 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
       client_id: workout.client_id,
       name: workout.name,
       description: workout.description || "",
-      exercises: workout.workout_exercises.map((ex: any) => ({
+      exercises: workout.workout_exercises.map((ex: WorkoutExerciseFromDB) => ({
         exercise_id: ex.exercise_id,
         sets: ex.sets,
         reps: ex.reps,
-        weight: ex.weight,
+        weight: ex.weight || undefined,
         rest_seconds: ex.rest_seconds,
-        notes: ex.notes,
+        notes: ex.notes || undefined,
       })),
     });
-  };
+  }, [workoutId]);
+
+  // Load workout data if editing
+  useEffect(() => {
+    if (workoutId && open) {
+      loadWorkoutData();
+    } else if (!workoutId && open) {
+      // Reset form for new workout
+      setFormData({
+        client_id: defaultClientId || "",
+        name: "",
+        description: "",
+        exercises: [],
+      });
+    }
+  }, [workoutId, open, defaultClientId, loadWorkoutData]);
 
   const createWorkoutMutation = useMutation({
     mutationFn: async (data: WorkoutFormData) => {
@@ -211,7 +214,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || "Failed to create workout");
     },
   });
@@ -265,7 +268,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || "Failed to update workout");
     },
   });
@@ -292,7 +295,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
     }));
   };
 
-  const updateExercise = (index: number, field: keyof WorkoutExercise, value: any) => {
+  const updateExercise = (index: number, field: keyof WorkoutExercise, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       exercises: prev.exercises.map((ex, i) =>
@@ -390,7 +393,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
                 <CardContent className="pt-6">
                   <div className="text-center text-muted-foreground">
                     <p>No exercises added yet.</p>
-                    <p className="text-sm mt-1">Click "Add Exercise" to get started.</p>
+                    <p className="text-sm mt-1">Click &ldquo;Add Exercise&rdquo; to get started.</p>
                   </div>
                 </CardContent>
               </Card>

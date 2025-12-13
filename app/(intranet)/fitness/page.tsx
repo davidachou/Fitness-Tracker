@@ -35,7 +35,7 @@ type Workout = {
   name: string;
   description?: string;
   created_at: string;
-  fitness_clients: { name: string };
+  fitness_clients: { name: string }[];
   workout_exercises: Array<{
     id: string;
     sets: number;
@@ -58,8 +58,8 @@ type WorkoutSession = {
   duration_seconds?: number;
   workouts: {
     name: string;
-    fitness_clients: { name: string };
-  };
+    fitness_clients: { name: string }[];
+  }[];
 };
 
 export default function FitnessPage() {
@@ -184,7 +184,7 @@ export default function FitnessPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Workout[];
+      return data as unknown as Workout[];
     },
   });
 
@@ -208,7 +208,7 @@ export default function FitnessPage() {
         .order("started_at", { ascending: false });
 
       if (error) throw error;
-      return data as WorkoutSession[];
+      return data as unknown as WorkoutSession[];
     },
   });
 
@@ -233,7 +233,7 @@ export default function FitnessPage() {
         .limit(20);
 
       if (error) throw error;
-      return data as WorkoutSession[];
+      return data as unknown as WorkoutSession[];
     },
   });
 
@@ -271,7 +271,7 @@ export default function FitnessPage() {
           <CardHeader>
             <CardTitle>No Fitness Profile Found</CardTitle>
             <CardDescription>
-              It looks like you don't have a fitness client profile set up yet.
+              It looks like you don&apos;t have a fitness client profile set up yet.
               Contact your trainer to get started.
             </CardDescription>
           </CardHeader>
@@ -322,7 +322,7 @@ export default function FitnessPage() {
               <SelectContent>
                 {allClientsQuery.data?.map(client => (
                   <SelectItem key={client.id} value={client.id}>
-                    {profilesLookupQuery.data?.[client.email] || client.name}
+                    {client.email && profilesLookupQuery.data?.[client.email] || client.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -453,7 +453,7 @@ export default function FitnessPage() {
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="font-semibold">{session.workouts.name}</h3>
+                            <h3 className="font-semibold">{session.workouts[0]?.name}</h3>
                             <p className="text-sm text-muted-foreground">
                               Started {new Date(session.started_at).toLocaleString()}
                             </p>
@@ -509,7 +509,7 @@ export default function FitnessPage() {
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="font-semibold">{session.workouts.name}</h3>
+                            <h3 className="font-semibold">{session.workouts[0]?.name}</h3>
                             <p className="text-sm text-muted-foreground">
                               {session.completed_at
                                 ? `Completed ${new Date(session.completed_at).toLocaleString()}`

@@ -17,16 +17,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle,
   Clock,
   Play,
   Pause,
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Save,
   X
 } from "lucide-react";
 
@@ -110,7 +107,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
         .single();
 
       if (error) throw error;
-      return data as WorkoutSession;
+      return data as unknown as WorkoutSession;
     },
   });
 
@@ -164,11 +161,8 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
     setExerciseLogs(prev => ({
       ...prev,
       [exerciseId]: {
-        workout_exercise_id: exerciseId,
-        sets_completed: 0,
-        reps_completed: 0,
-        rest_time_seconds: 0,
         ...prev[exerciseId],
+        workout_exercise_id: exerciseId,
         ...updates
       }
     }));
@@ -223,7 +217,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
 
       if (error) throw error;
     },
-    onError: (error: any) => {
+    onError: () => {
       toast.error("Failed to save exercise log");
     }
   });
@@ -259,7 +253,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
       queryClient.invalidateQueries({ queryKey: ["active-sessions"] });
       onClose();
     },
-    onError: (error: any) => {
+    onError: () => {
       toast.error("Failed to complete workout");
     }
   });

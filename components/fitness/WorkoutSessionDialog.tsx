@@ -22,7 +22,8 @@ import {
   Clock,
   Play,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle
 } from "lucide-react";
 
 type WorkoutSession = {
@@ -102,6 +103,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   const [restTimer, setRestTimer] = useState<{ running: boolean; timeLeft: number; totalTime: number; startTime: number } | null>(null);
   const [exerciseTimer, setExerciseTimer] = useState<{ running: boolean; elapsed: number; startTime: number } | null>(null);
   const [sessionStartTime] = useState(new Date());
+  const [showCompletionConfirm, setShowCompletionConfirm] = useState(false);
 
   // Reset workout state when starting a new session
   const prevSessionId = useRef<string | null>(null);
@@ -128,7 +130,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
               template_id,
               started_at,
               status,
-              workout_templates!inner(
+              workout_templates(
                 name,
                 template_exercises(
                   id,
@@ -138,7 +140,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                   weight,
                   rest_seconds,
                   notes,
-                  exercises!inner(
+                  exercises(
                     id,
                     name,
                     instructions,
@@ -150,15 +152,42 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
             .eq("id", sessionId)
             .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('WorkoutSessionDialog: Query error:', error);
+          throw error;
+        }
+
+      console.log('WorkoutSessionDialog: Raw session data from database:', data);
 
       // Transform to match component expectations
-          const template = data.workout_templates?.[0];
+          // Supabase returns workout_templates as an object if there's one result, or array if multiple
+          const workoutTemplates = Array.isArray(data.workout_templates)
+            ? data.workout_templates
+            : [data.workout_templates];
+
+          const template = workoutTemplates[0];
+          console.log('WorkoutSessionDialog: Session data:', data);
+          console.log('WorkoutSessionDialog: workout_templates raw:', data.workout_templates);
+          console.log('WorkoutSessionDialog: workout_templates normalized:', workoutTemplates);
+          console.log('WorkoutSessionDialog: Template:', template);
+          console.log('WorkoutSessionDialog: Template exercises:', template?.template_exercises);
+
+          if (!template) {
+            console.warn('WorkoutSessionDialog: No workout template found for session', data.id);
+            return {
+              ...data,
+              workouts: {
+                name: 'Unknown Workout',
+                template_exercises: []
+              }
+            } as unknown as WorkoutSession;
+          }
+
           return {
             ...data,
             workouts: {
-              name: template?.name || '',
-              template_exercises: template?.template_exercises || []
+              name: template.name || 'Unnamed Workout',
+              template_exercises: template.template_exercises || []
             }
           } as unknown as WorkoutSession;
 
@@ -169,6 +198,11 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   const exercises = sessionQuery.data?.workouts.template_exercises || [];
   const currentExercise = exercises[currentExerciseIndex];
   const totalExercises = exercises.length;
+
+  // Debug logging
+  console.log('WorkoutSessionDialog: exercises array:', exercises);
+  console.log('WorkoutSessionDialog: currentExercise:', currentExercise);
+  console.log('WorkoutSessionDialog: totalExercises:', totalExercises);
   const completedExercises = exercises.filter(ex =>
     exerciseLogs[ex.id]?.sets_completed >= ex.sets
   ).length;
@@ -519,6 +553,11 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   });
 
   const handleCompleteWorkout = () => {
+    setShowCompletionConfirm(true);
+  };
+
+  const confirmCompleteWorkout = () => {
+    setShowCompletionConfirm(false);
     completeWorkoutMutation.mutate();
   };
 
@@ -546,6 +585,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -653,7 +693,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
 
 
           {/* Current Exercise */}
-          {currentExercise && (
+          {currentExercise ? (
             <Card className="border-primary/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -672,7 +712,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                       Planned Workout
                     </h4>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-blue-50/30 dark:bg-blue-950/10 rounded-lg border border-blue-200/30 dark:border-blue-800/20">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-blue-50 dark:bg-blue-950/10 rounded-lg border border-blue-200 dark:border-blue-800/20">
                     <div className="text-center">
                       <div className="text-3xl font-black text-cyan-600 dark:text-cyan-400">
                         {exerciseLogs[currentExercise.id]?.sets_completed || 0}
@@ -711,7 +751,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                       Track Your Performance
                     </h4>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50/30 dark:bg-green-950/10 rounded-lg border border-green-200/30 dark:border-green-800/20">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50 dark:bg-green-950/10 rounded-lg border border-green-200 dark:border-green-800/20">
                     <div className="space-y-2">
                       <Label className="font-medium">
                         {currentExercise.exercises.is_time_based ? "Actual Time (sec)" : "Actual Reps"}
@@ -799,7 +839,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                       Boolean(
                         (exerciseLogs[currentExercise.id]?.sets_completed || 0) >= currentExercise.sets ||
                         restTimer !== null ||
-                        ((currentExercise.exercises?.is_time_based ?? false) && exerciseTimer && !exerciseLogs[currentExercise.id]?.time_completed)
+                        (currentExercise.exercises?.is_time_based && exerciseTimer)
                       )
                     }
                     className={`flex-1 ${restTimer ? 'opacity-50' : ''}`}
@@ -818,6 +858,21 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                     <p className="text-sm text-muted-foreground">{currentExercise.notes}</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-red-200 bg-red-50/30 dark:border-red-800/20 dark:bg-red-950/10">
+              <CardContent className="pt-6 text-center">
+                <div className="text-red-600 dark:text-red-400 mb-2">
+                  <AlertTriangle className="h-8 w-8 mx-auto" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No Exercises Found</h3>
+                <p className="text-muted-foreground mb-4">
+                  This workout template does not have any exercises configured yet.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Contact your trainer or try selecting a different workout.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -871,5 +926,58 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Completion Confirmation Dialog */}
+    <Dialog open={showCompletionConfirm} onOpenChange={setShowCompletionConfirm}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            Complete Workout
+          </DialogTitle>
+          <DialogDescription>
+            {(() => {
+              const totalSetsCompleted = exercises.reduce((total, ex) => {
+                return total + (exerciseLogs[ex.id]?.sets_completed || 0);
+              }, 0);
+              const totalSetsRequired = exercises.reduce((total, ex) => {
+                return total + ex.sets;
+              }, 0);
+
+              return totalSetsCompleted >= totalSetsRequired ? (
+                <span>
+                  🎉 <strong>Excellent work!</strong> You&apos;ve completed all {totalSetsRequired} sets.
+                  Ready to wrap up this workout session?
+                </span>
+              ) : (
+                <span>
+                  ⚠️ You&apos;ve completed <strong>{totalSetsCompleted}</strong> out of <strong>{totalSetsRequired}</strong> sets.
+                  <br />
+                  Make sure you&apos;ve clicked &quot;Complete Set&quot; for all exercises you performed before ending the workout.
+                </span>
+              );
+            })()}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex gap-3 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowCompletionConfirm(false)}
+            className="flex-1"
+          >
+            Keep Working
+          </Button>
+          <Button
+            onClick={confirmCompleteWorkout}
+            disabled={completeWorkoutMutation.isPending}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+          >
+            {completeWorkoutMutation.isPending ? "Completing..." : "Complete Workout"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

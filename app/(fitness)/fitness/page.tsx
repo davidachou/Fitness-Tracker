@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
 import { shouldShowAdminFeatures } from "@/lib/utils";
 import { WorkoutFormDialog } from "@/components/fitness/WorkoutFormDialog";
@@ -78,6 +79,10 @@ export default function FitnessPage() {
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [deleteWorkoutConfirm, setDeleteWorkoutConfirm] = useState<{
+    open: boolean;
+    workout: { id: string; name: string } | null;
+  }>({ open: false, workout: null });
 
   useEffect(() => {
     const loadUser = async () => {
@@ -530,10 +535,7 @@ export default function FitnessPage() {
                               variant="outline"
                               className="flex-1"
                               onClick={() => {
-                                if (confirm(`Are you sure you want to delete "${workout.name}"? This will remove the workout template but keep all historical workout sessions.`)) {
-                                  setDeletingWorkoutId(workout.id);
-                                  deleteWorkoutMutation.mutate(workout.id);
-                                }
+                                setDeleteWorkoutConfirm({ open: true, workout: { id: workout.id, name: workout.name } });
                               }}
                               disabled={deleteWorkoutMutation.isPending && deletingWorkoutId === workout.id}
                             >
@@ -625,6 +627,52 @@ export default function FitnessPage() {
           setActiveSessionId(null);
         }}
       />
+
+      {/* Delete Workout Confirmation Dialog */}
+      <Dialog
+        open={deleteWorkoutConfirm.open}
+        onOpenChange={(open) => setDeleteWorkoutConfirm({ open, workout: open ? deleteWorkoutConfirm.workout : null })}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Workout Template
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>&quot;{deleteWorkoutConfirm.workout?.name}&quot;</strong>?
+              <br />
+              <span className="text-muted-foreground">
+                This will remove the workout template but keep all historical workout sessions.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteWorkoutConfirm({ open: false, workout: null })}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteWorkoutConfirm.workout) {
+                  setDeletingWorkoutId(deleteWorkoutConfirm.workout.id);
+                  deleteWorkoutMutation.mutate(deleteWorkoutConfirm.workout.id);
+                  setDeleteWorkoutConfirm({ open: false, workout: null });
+                }
+              }}
+              disabled={deleteWorkoutMutation.isPending}
+              className="flex-1"
+            >
+              {deleteWorkoutMutation.isPending ? "Deleting..." : "Delete Workout"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

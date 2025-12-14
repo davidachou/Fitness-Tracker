@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,10 @@ export default function ExercisesPage() {
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const [deleteExerciseConfirm, setDeleteExerciseConfirm] = useState<{
+    open: boolean;
+    exercise: Exercise | null;
+  }>({ open: false, exercise: null });
   const [editForm, setEditForm] = useState({
     name: "",
     category: "",
@@ -227,27 +232,30 @@ export default function ExercisesPage() {
   };
 
   const deleteExercise = async () => {
-    if (!editingExercise) return;
-
-    if (!confirm(`Are you sure you want to delete "${editingExercise.name}"? This action cannot be undone.`)) {
-      return;
-    }
+    if (!deleteExerciseConfirm.exercise) return;
 
     try {
       const { error } = await supabase
         .from("exercises")
         .delete()
-        .eq("id", editingExercise.id);
+        .eq("id", deleteExerciseConfirm.exercise.id);
 
       if (error) throw error;
 
+      toast.success("Exercise deleted successfully!");
       // Update the local data
       exercisesQuery.refetch();
       setEditDialogOpen(false);
       setEditingExercise(null);
+      setDeleteExerciseConfirm({ open: false, exercise: null });
     } catch (error) {
       console.error("Failed to delete exercise:", error);
+      toast.error("Failed to delete exercise");
     }
+  };
+
+  const handleDeleteExercise = (exercise: Exercise) => {
+    setDeleteExerciseConfirm({ open: true, exercise });
   };
 
   const addMuscleGroup = () => {
@@ -872,7 +880,7 @@ export default function ExercisesPage() {
           </div>
 
           <DialogFooter className="flex justify-between">
-            <Button variant="destructive" onClick={deleteExercise} disabled={saving}>
+            <Button variant="destructive" onClick={() => handleDeleteExercise(editingExercise!)} disabled={saving || !editingExercise}>
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Exercise
             </Button>
@@ -885,6 +893,46 @@ export default function ExercisesPage() {
               </Button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Exercise Confirmation Dialog */}
+      <Dialog
+        open={deleteExerciseConfirm.open}
+        onOpenChange={(open) => setDeleteExerciseConfirm({ open, exercise: open ? deleteExerciseConfirm.exercise : null })}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Exercise
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>&quot;{deleteExerciseConfirm.exercise?.name}&quot;</strong>?
+              <br />
+              <span className="text-muted-foreground">
+                This action cannot be undone.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteExerciseConfirm({ open: false, exercise: null })}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={deleteExercise}
+              disabled={false}
+              className="flex-1"
+            >
+              Delete Exercise
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -31,6 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { AdminUIToggle } from "@/components/admin-ui-toggle";
+import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
 import { toast } from "sonner";
 import { getAvatarUrl } from "@/lib/utils";
 // import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
@@ -85,106 +86,144 @@ type TourStep = {
 
 const TOUR_STORAGE_KEY = "app-tour-completed";
 
-const tourSteps: TourStep[] = [
-  {
-    id: "tour-announcements",
-    title: "Announcements",
-    body: "Ticker for org updates. Use the arrows to skim updates; it's visible everywhere.",
-    selector: "[data-tour='announcement-bar']",
-    href: "/dashboard",
-  },
-  {
+// Dynamic tour steps based on user role
+const getTourSteps = (isAdmin: boolean): TourStep[] => {
+  const baseSteps: TourStep[] = [
+    {
+      id: "tour-announcements",
+      title: "Announcements",
+      body: "Stay updated with fitness tips, app news, and important updates. Use the arrows to browse announcements.",
+      selector: "[data-tour='announcement-bar']",
+      href: "/dashboard",
+    },
+    {
+      id: "tour-home",
+      title: "Dashboard",
+      body: "Your fitness command center with workout stats, quick actions, useful links, and community polls.",
+      selector: "[data-tour-nav='dashboard']",
+      href: "/dashboard",
+    },
+    {
+      id: "tour-profile",
+      title: "Your Profile",
+      body: "Update your photo, fitness bio, and goals. This information helps trainers provide personalized guidance.",
+      selector: "[data-tour-nav='profile']",
+      href: "/profile",
+    },
+    {
+      id: "tour-fitness",
+      title: "Fitness Center",
+      body: "Access your workout library, start new sessions, and track your fitness progress over time.",
+      selector: "[data-tour-nav='fitness']",
+      href: "/fitness",
+    },
+    {
+      id: "tour-analytics",
+      title: "Progress Analytics",
+      body: "Visualize your fitness journey with detailed charts, trends, and performance metrics.",
+      selector: "[data-tour-nav='analytics']",
+      href: "/analytics",
+    },
+    {
+      id: "tour-exercises",
+      title: "Exercise Library",
+      body: "Explore our comprehensive exercise database with instructions, videos, and training tips.",
+      selector: "[data-tour-nav='exercises']",
+      href: "/exercises",
+    },
+    {
+      id: "tour-team",
+      title: "Our Trainers",
+      body: "Browse trainer profiles, specialties, and contact information. Find the perfect trainer for your goals.",
+      selector: "[data-tour-nav='team']",
+      href: "/team",
+    },
+    {
+      id: "tour-wins",
+      title: "Success Stories",
+      body: "Read inspiring fitness journeys, success stories, and helpful training articles from our community.",
+      selector: "[data-tour-nav='wins']",
+      href: "/wins",
+    },
+    {
+      id: "tour-knowledge",
+      title: "Fitness Knowledge Base",
+      body: "Access training guides, nutrition tips, and fitness education resources.",
+      selector: "[data-tour-nav='knowledge']",
+      href: "/knowledge",
+    },
+    {
+      id: "tour-quick-links",
+      title: "Fitness Resources",
+      body: "Quick access to useful fitness tools, calculators, and external resources.",
+      selector: "[data-tour-nav='quick-links']",
+      href: "/quick-links",
+    },
+    {
+      id: "tour-feedback",
+      title: "Share Feedback",
+      body: "Help us improve! Share your thoughts on workouts, features, and your fitness experience.",
+      selector: "[data-tour-nav='feedback']",
+      href: "/feedback",
+    },
+    {
+      id: "tour-calendar",
+      title: "Fitness Calendar",
+      body: "Schedule workouts, track important fitness dates, and plan your training calendar.",
+      selector: "[data-tour-nav='calendar']",
+      href: "/calendar",
+    },
+    {
+      id: "tour-polls",
+      title: "Community Polls",
+      body: "Vote on fitness topics and see what the community thinks. Great way to get training inspiration!",
+      selector: "[data-tour-nav='polls']",
+      href: "/polls",
+    },
+  ];
+
+  // Add theme toggle step (after announcements but before main nav)
+  baseSteps.splice(1, 0, {
     id: "tour-theme",
-    title: "Light / Dark",
-    body: "Toggle themes anytime; colors stay consistent across the app.",
-    selector: "[data-tour-nav='theme']",
+    title: "Light / Dark Mode",
+    body: "Toggle between light and dark themes anytime. Your preference stays consistent across all pages.",
+      selector: "[data-tour='theme-toggle']",
     href: "/dashboard",
-  },
-  {
-    id: "tour-home",
-    title: "Home",
-    body: "Dashboard with quick actions, stats, quick links, and the latest poll.",
-    selector: "[data-tour-nav='dashboard']",
-    href: "/dashboard",
-  },
-  {
-    id: "tour-profile",
-    title: "Your profile",
-    body: "Update photo, bio, and expertise—these power the Team directory.",
-    selector: "[data-tour-nav='profile']",
-    href: "/profile",
-  },
-  {
-    id: "tour-team",
-    title: "Team directory",
-    body: "Search by name or expertise and open profiles for contact links.",
-    selector: "[data-tour-nav='team']",
-    href: "/team",
-  },
-  {
-    id: "tour-knowledge",
-    title: "Knowledge hub",
-    body: "Search tagged assets; admins can add or edit important links.",
-    selector: "[data-tour-nav='knowledge']",
-    href: "/knowledge",
-  },
-  {
-    id: "tour-projects",
-    title: "Connections",
-    body: "See which trainers have worked with each client based on completed workout sessions.",
-    selector: "[data-tour-nav='projects']",
-    href: "/connections",
-  },
-  {
-    id: "tour-wins",
-    title: "Wins & blog",
-    body: "Publish wins or embed LinkedIn posts; admins can edit anything.",
-    selector: "[data-tour-nav='wins']",
-    href: "/wins",
-  },
-  {
-    id: "tour-calendar",
-    title: "Calendar",
-    body: "Shared Google Calendar for OOO, travel, and key dates.",
-    selector: "[data-tour-nav='calendar']",
-    href: "/calendar",
-  },
-  {
-    id: "tour-quick-links",
-    title: "Quick Links",
-    body: "Launchpad of daily tools; admins can add or edit icons and URLs.",
-    selector: "[data-tour-nav='quick-links']",
-    href: "/quick-links",
-  },
-  {
-    id: "tour-feedback",
-    title: "Feedback inbox",
-    body: "Client vs employee channels; submit, edit, or delete your own (admins can edit all).",
-    selector: "[data-tour-nav='feedback']",
-    href: "/feedback",
-  },
-  {
-    id: "tour-booking",
-    title: "Bookings (placeholder)",
-    body: "This tab is a placeholder (we could swap in anything—even lunch menus). Share what you want built here.",
-    selector: "[data-tour-nav='booking']",
-    href: "/booking",
-  },
-  {
-    id: "tour-polls",
-    title: "Polls",
-    body: "Create and vote; results show live on the dashboard.",
-    selector: "[data-tour-nav='polls']",
-    href: "/polls",
-  },
-  {
-    id: "tour-fitness",
-    title: "Fitness",
-    body: "View your workout library, track active sessions, and review progress history.",
-    selector: "[data-tour-nav='fitness']",
-    href: "/fitness",
-  },
-];
+  });
+
+  // Add admin toggle step if user is admin (after theme)
+  if (isAdmin) {
+    baseSteps.splice(2, 0, {
+      id: "tour-admin-toggle",
+      title: "Admin View Toggle",
+      body: "Switch between normal user view and admin view to access trainer management features.",
+      selector: "[data-tour='admin-toggle']",
+      href: "/dashboard",
+    });
+  }
+
+  // Add admin-only steps if user is admin
+  if (isAdmin) {
+    baseSteps.push(
+      {
+        id: "tour-connections",
+        title: "Client Connections",
+        body: "As a trainer, see which clients you've worked with and track their progress across sessions.",
+        selector: "[data-tour-nav='connections']",
+        href: "/connections",
+      },
+      {
+        id: "tour-clients",
+        title: "Client Management",
+        body: "Manage your fitness clients, view their profiles, and track their workout history.",
+        selector: "[data-tour-nav='fitness-clients']",
+        href: "/fitness-clients",
+      }
+    );
+  }
+
+  return baseSteps;
+};
 
 export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
@@ -195,8 +234,10 @@ export function AppShell({ user, children }: AppShellProps) {
   const [tourIndex, setTourIndex] = useState(0);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const { adminUIMode } = useAdminUIMode();
 
-  const activeTourStep = isTourActive ? tourSteps[tourIndex] : null;
+  const currentTourSteps = getTourSteps(!!(profile?.is_admin && adminUIMode));
+  const activeTourStep = isTourActive ? currentTourSteps[tourIndex] : null;
 
   const startTour = () => {
     setTourIndex(0);
@@ -217,7 +258,7 @@ export function AppShell({ user, children }: AppShellProps) {
   const nextTourStep = () => {
     setTourIndex((i) => {
       const next = i + 1;
-      if (next >= tourSteps.length) {
+      if (next >= currentTourSteps.length) {
         finishTour();
         return i;
       }
@@ -235,11 +276,11 @@ export function AppShell({ user, children }: AppShellProps) {
 
   useEffect(() => {
     if (!isTourActive) return;
-    const step = tourSteps[tourIndex];
+    const step = currentTourSteps[tourIndex];
     if (step?.href && step.href !== pathname) {
       router.push(step.href);
     }
-  }, [isTourActive, tourIndex, pathname, router]);
+  }, [isTourActive, tourIndex, pathname, router, currentTourSteps]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -326,7 +367,7 @@ export function AppShell({ user, children }: AppShellProps) {
   const renderNav = () => (
     <nav className="space-y-2">
       {navItems
-        .filter(({ adminOnly }) => !adminOnly || profile?.is_admin)
+        .filter(({ adminOnly }) => !adminOnly || (profile?.is_admin && adminUIMode))
         .map(({ href, label, icon: Icon, status }) => {
         const active = pathname === href;
         const tourSlug = href.replace("/", "") || "home";
@@ -462,7 +503,7 @@ export function AppShell({ user, children }: AppShellProps) {
                     Fitness Tracker
                   </p>
                   <h1 className="text-2xl font-bold text-foreground dark:text-white drop-shadow-sm">
-                    Team Workspace
+                    Your Fitness Hub
                   </h1>
                 </div>
               </div>
@@ -473,10 +514,7 @@ export function AppShell({ user, children }: AppShellProps) {
                     {profile?.full_name || user.email}
                   </span>
                 </div>
-                <div
-                  data-tour-nav="theme"
-                  className="flex items-center gap-1"
-                >
+                <div className="flex items-center gap-1">
                   <AdminUIToggle isAdmin={Boolean(profile?.is_admin)} />
                   <ThemeSwitcher />
                 </div>
@@ -524,11 +562,11 @@ export function AppShell({ user, children }: AppShellProps) {
         <TourOverlay
           step={activeTourStep}
           stepIndex={tourIndex}
-          totalSteps={tourSteps.length}
+          totalSteps={currentTourSteps.length}
           onClose={finishTour}
           onNext={nextTourStep}
           onPrev={prevTourStep}
-          isLast={tourIndex === tourSteps.length - 1}
+          isLast={tourIndex === currentTourSteps.length - 1}
           hasPrev={tourIndex > 0}
         />
       )}
@@ -644,7 +682,7 @@ function TourOverlay({
         <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span>{hasTarget ? "Highlighted area" : "Step context"} — use Next to continue.</span>
+            <span>Use Next to continue</span>
           </div>
           <div className="flex items-center gap-2">
             <button

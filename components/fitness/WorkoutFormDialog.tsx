@@ -167,6 +167,10 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
 
   const createWorkoutMutation = useMutation({
     mutationFn: async (data: WorkoutFormData) => {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("User not authenticated");
+
       // Create workout template
       const { data: template, error: templateError } = await supabase
         .from("workout_templates")
@@ -174,6 +178,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
           client_id: data.client_id,
           name: data.name,
           description: data.description || null,
+          created_by: user.id,
         })
         .select("id")
         .single();

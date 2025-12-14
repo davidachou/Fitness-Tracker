@@ -54,6 +54,10 @@ export default function FitnessClientsAdminPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<FitnessClient | null>(null);
+  const [deleteClientConfirm, setDeleteClientConfirm] = useState<{
+    open: boolean;
+    client: FitnessClient | null;
+  }>({ open: false, client: null });
 
   // Form data
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
@@ -281,10 +285,14 @@ export default function FitnessClientsAdminPage() {
   };
 
   const handleDelete = (client: FitnessClient) => {
-    if (!confirm(`Are you sure you want to delete "${client.name}"? This will also delete all their workouts and cannot be undone.`)) {
-      return;
+    setDeleteClientConfirm({ open: true, client });
+  };
+
+  const confirmDeleteClient = () => {
+    if (deleteClientConfirm.client) {
+      deleteClientMutation.mutate(deleteClientConfirm.client.id);
+      setDeleteClientConfirm({ open: false, client: null });
     }
-    deleteClientMutation.mutate(client.id);
   };
 
   if (loading) {
@@ -597,6 +605,46 @@ export default function FitnessClientsAdminPage() {
               {updateClientMutation.isPending ? "Updating..." : "Update Client"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Client Confirmation Dialog */}
+      <Dialog
+        open={deleteClientConfirm.open}
+        onOpenChange={(open) => setDeleteClientConfirm({ open, client: open ? deleteClientConfirm.client : null })}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Client
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>&quot;{deleteClientConfirm.client?.name}&quot;</strong>?
+              <br />
+              <span className="text-muted-foreground">
+                This will also delete all their workouts and cannot be undone.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteClientConfirm({ open: false, client: null })}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteClient}
+              disabled={deleteClientMutation.isPending}
+              className="flex-1"
+            >
+              {deleteClientMutation.isPending ? "Deleting..." : "Delete Client"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

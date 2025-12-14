@@ -92,6 +92,11 @@ export function TimeTimeline({
   const [tab, setTab] = useState<"today" | "week" | "all">("today");
   const [editing, setEditing] = useState<EditEntryInput | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleteEntryConfirm, setDeleteEntryConfirm] = useState<{
+    open: boolean;
+    entryId: string | null;
+    entryDescription: string;
+  }>({ open: false, entryId: null, entryDescription: "" });
 
   const uniqueClients = useMemo(() => {
     const set = new Set<string>();
@@ -162,13 +167,16 @@ export function TimeTimeline({
     setError(null);
   };
 
-  const confirmAndDelete = async (id: string) => {
-    if (!onDeleteEntryAction) return;
-    const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this time entry?");
-    if (!confirmed) return;
+  const handleDeleteEntry = (id: string, description: string) => {
+    setDeleteEntryConfirm({ open: true, entryId: id, entryDescription: description });
+  };
+
+  const confirmDeleteEntry = async () => {
+    if (!deleteEntryConfirm.entryId || !onDeleteEntryAction) return;
     setError(null);
     try {
-      await onDeleteEntryAction(id);
+      await onDeleteEntryAction(deleteEntryConfirm.entryId);
+      setDeleteEntryConfirm({ open: false, entryId: null, entryDescription: "" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete entry");
     }
@@ -309,7 +317,7 @@ export function TimeTimeline({
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => confirmAndDelete(entry.id)}
+                              onClick={() => handleDeleteEntry(entry.id, entry.description || "time entry")}
                               disabled={isDeleting}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -466,6 +474,46 @@ export function TimeTimeline({
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Entry Confirmation Dialog */}
+      <Dialog
+        open={deleteEntryConfirm.open}
+        onOpenChange={(open) => setDeleteEntryConfirm({ open, entryId: open ? deleteEntryConfirm.entryId : null, entryDescription: "" })}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Time Entry
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this time entry?
+              <br />
+              <span className="text-muted-foreground">
+                Description: &quot;{deleteEntryConfirm.entryDescription}&quot;
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteEntryConfirm({ open: false, entryId: null, entryDescription: "" })}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteEntry}
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              {isDeleting ? "Deleting..." : "Delete Entry"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

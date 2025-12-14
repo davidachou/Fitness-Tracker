@@ -22,6 +22,7 @@ const AdminUIToggle = ({ isAdmin }: AdminUIToggleProps) => {
       size="sm"
       onClick={toggleAdminUIMode}
       title={adminUIMode ? "Switch to normal user view" : "Switch to admin view"}
+      data-tour="admin-toggle"
     >
       {adminUIMode ? (
         <Shield

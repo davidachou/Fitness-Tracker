@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { sampleQuickLinks, sampleProjects, sampleTeamMembers, sampleWins, sampleFeedback } from "@/lib/sample-data";
-import { ArrowUpRight, Flame, Link2, MessageSquare, Trophy, KanbanSquare, Users, X } from "lucide-react";
+import { ArrowUpRight, Flame, Link2, MessageSquare, Trophy, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminUIMode } from "@/hooks/use-admin-ui-mode";
 import { shouldShowAdminFeatures } from "@/lib/utils";
@@ -36,7 +36,6 @@ export default function DashboardPage() {
     projects: sampleProjects.length,
     wins: sampleWins.length,
     feedbackClient: sampleFeedback.filter((f) => f.kind === "client").length,
-    feedbackEmployee: sampleFeedback.filter((f) => f.kind === "employee").length,
   });
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementForm, setAnnouncementForm] = useState({ message: "", id: "" });
@@ -79,34 +78,20 @@ export default function DashboardPage() {
     const loadStats = async () => {
       try {
         const [
-          { count: teamCount },
-          { count: winCount },
+          { count: activeClientsCount },
+          { count: blogPostsCount },
           { count: feedbackClient },
-          { count: feedbackEmployee },
-          { data: clientContribs },
         ] = await Promise.all([
-          supabase.from("team_members").select("*", { count: "exact", head: true }),
+          supabase.from("fitness_clients").select("*", { count: "exact", head: true }).eq("is_active", true),
           supabase.from("wins_posts").select("*", { count: "exact", head: true }),
           supabase.from("feedback_entries").select("*", { count: "exact", head: true }).eq("kind", "client"),
-          supabase.from("feedback_entries").select("*", { count: "exact", head: true }).eq("kind", "employee"),
-          supabase.rpc("client_contributors"),
         ]);
 
-        const activeClients = new Set<string>();
-        (clientContribs as { client_id: string; archived: boolean | null }[] | null)?.forEach((row) => {
-          if (!row) return;
-          const isArchived = Boolean(row.archived);
-          if (!isArchived && row.client_id) {
-            activeClients.add(row.client_id);
-          }
-        });
-
         setStats((prev) => ({
-          team: teamCount ?? prev.team,
-          projects: activeClients.size || prev.projects,
-          wins: winCount ?? prev.wins,
+          team: prev.team, // Keep existing team count for now
+          projects: activeClientsCount ?? prev.projects,
+          wins: blogPostsCount ?? prev.wins,
           feedbackClient: feedbackClient ?? prev.feedbackClient,
-          feedbackEmployee: feedbackEmployee ?? prev.feedbackEmployee,
         }));
       } catch (error) {
         console.warn("loadStats failed", error);
@@ -118,8 +103,8 @@ export default function DashboardPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single();
-      if (profile?.is_admin) {
+      const { data: profiles } = await supabase.from("profiles").select("is_admin").eq("id", user.id);
+      if (profiles && profiles.length > 0 && profiles[0].is_admin) {
         setIsAdmin(true);
       }
     };
@@ -129,9 +114,8 @@ export default function DashboardPage() {
         .from("polls")
         .select("id, question, created_at, poll_options(label, votes)")
         .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-      if (data) setLatestPoll(data as unknown as PollWithOptions);
+        .limit(1);
+      if (data && data.length > 0) setLatestPoll(data[0] as unknown as PollWithOptions);
     };
 
     loadQuickLinks();
@@ -149,18 +133,30 @@ export default function DashboardPage() {
       const supabase = createClient();
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      if (authError || !user) return;
+      if (authError || !user) {
+        console.log('No authenticated user, skipping profile check');
+        return;
+      }
+
+      console.log('Checking profile for user:', user.id, user.email);
 
       // Check if profile exists
-      const { data: existingProfile } = await supabase
+      const { data: existingProfiles, error: profileCheckError } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
+        .select('id, full_name, role')
+        .eq('id', user.id);
 
-      if (!existingProfile) {
+      if (profileCheckError) {
+        console.error('Error checking existing profile:', profileCheckError);
+        setProfileChecked(true);
+        return;
+      }
+
+      console.log('Existing profiles found:', existingProfiles?.length || 0);
+
+      if (!existingProfiles || existingProfiles.length === 0) {
         // Create profile using the API
-        console.log('Creating profile for invited user:', user.email);
+        console.log('No profile found, creating profile for user:', user.email, 'with metadata:', user.user_metadata);
         const response = await fetch('/api/dashboard/create-profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -172,10 +168,17 @@ export default function DashboardPage() {
         });
 
         if (response.ok) {
-          console.log('Profile created successfully');
+          console.log('Profile created successfully via dashboard fallback');
         } else {
-          console.error('Failed to create profile:', await response.text());
+          const errorText = await response.text();
+          console.error('Failed to create profile via dashboard:', errorText);
+          // Try to show user-friendly error
+          if (!errorText.includes('Profile already exists')) {
+            toast.error('Failed to create user profile. Please contact support.');
+          }
         }
+      } else {
+        console.log('Profile already exists for user:', user.id);
       }
 
       setProfileChecked(true);
@@ -235,26 +238,28 @@ export default function DashboardPage() {
             Fitness Tracker
           </div>
           <h1 className="text-4xl font-black leading-tight sm:text-5xl">
-            Everything the team needs, in one focused workspace.
+            Your Fitness Journey Hub
           </h1>
           <p className="text-lg text-muted-foreground dark:text-white/80">
-            Fast access to people, knowledge, projects, wins, polls, feedback, and bookings—secured with Google OAuth and powered by Supabase.
+            Track workouts, connect with trainers, explore fitness content, and monitor your progress—all in one secure platform.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild size="lg">
-              <Link href="/team">
-                Meet the team <ArrowUpRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg">
-              <Link href="/knowledge">
-                Explore knowledge hub <ArrowUpRight className="ml-2 h-4 w-4" />
+              <Link href="/fitness">
+                Start Workout <ArrowUpRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
               <Button asChild size="lg">
+                <Link href="/fitness-clients">
+                  Manage Clients <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+            {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
+              <Button asChild size="lg">
                 <Link href="/admin/invite">
-                  Add Clients <ArrowUpRight className="ml-2 h-4 w-4" />
+                  Invite Users <ArrowUpRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             )}
@@ -264,38 +269,34 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
+          <StatCard
+            title="Active Clients"
+            value={stats.projects}
+            accent="from-pop-1/70 via-pop-3/30 to-pop-2/70"
+            href="/connections"
+            dataTour="tour-stat-projects"
+            icon={Users}
+          />
+        )}
         <StatCard
-          title="Active projects"
-          value={stats.projects}
-          accent="from-pop-1/70 via-pop-3/30 to-pop-2/70"
-          href="/projects"
-          dataTour="tour-stat-projects"
-          icon={KanbanSquare}
-        />
-        <StatCard
-          title="Wins logged"
+          title="Blog Posts"
           value={stats.wins}
           accent="from-pop-1/60 via-secondary/30 to-pop-2/80"
           href="/wins"
           dataTour="tour-stat-wins"
           icon={Trophy}
         />
-        <StatCard
-          title="Client feedback"
-          value={stats.feedbackClient}
-          accent="from-pop-3/60 via-gradient-3/30 to-pop-2/75"
-          href="/feedback"
-          dataTour="tour-stat-feedback-client"
-          icon={MessageSquare}
-        />
-        <StatCard
-          title="Employee feedback"
-          value={stats.feedbackEmployee}
-          accent="from-pop-4/60 via-primary/35 to-pop-2/80"
-          href="/feedback"
-          dataTour="tour-stat-feedback-employee"
-          icon={Users}
-        />
+        {shouldShowAdminFeatures(isAdmin, adminUIMode) && (
+          <StatCard
+            title="Client Feedback"
+            value={stats.feedbackClient}
+            accent="from-pop-3/60 via-gradient-3/30 to-pop-2/75"
+            href="/feedback"
+            dataTour="tour-stat-feedback-client"
+            icon={MessageSquare}
+          />
+        )}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">

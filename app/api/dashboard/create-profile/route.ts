@@ -29,13 +29,20 @@ export async function POST(request: NextRequest) {
 
     // Check if profile already exists
     const adminSupabase = createAdminClient()
-    const { data: existingProfile } = await adminSupabase
+    console.log('Checking for existing profile for userId:', userId)
+    const { data: existingProfiles, error: checkError } = await adminSupabase
       .from('profiles')
       .select('id')
       .eq('id', userId)
-      .single()
 
-    if (existingProfile) {
+    if (checkError) {
+      console.error('Error checking existing profile:', checkError)
+    }
+
+    console.log('Existing profiles found:', existingProfiles?.length || 0)
+
+    if (existingProfiles && existingProfiles.length > 0) {
+      console.log('Profile already exists, skipping creation')
       return NextResponse.json({ error: 'Profile already exists' }, { status: 400 })
     }
 
@@ -58,38 +65,42 @@ export async function POST(request: NextRequest) {
       ADMIN_ALLOW_LIST.includes(email!) ||
       user.user_metadata?.invite_is_admin === true
 
-    // Extract expertise from invite data if available
-    const expertise = (hasInviteData && user.user_metadata?.invite_expertise) ?
-                     (Array.isArray(user.user_metadata.invite_expertise) ? user.user_metadata.invite_expertise : []) :
-                     []
+    const profileData = {
+      id: userId,
+      email: email!,
+      full_name: fullName,
+      role: isAdmin ? 'Administrator' : role,
+      is_admin: isAdmin,
+      avatar_url: userMetadata?.avatar_url,
+      bio: invitedBio || bioFromMetadata || null,
+    }
 
-    const { data: newProfile, error: createError } = await adminSupabase
+    console.log('Profile data to insert:', JSON.stringify(profileData, null, 2))
+    console.log('Role extracted:', role, 'isAdmin:', isAdmin)
+    console.log('hasInviteData:', hasInviteData, 'invite_role:', user.user_metadata?.invite_role)
+
+    console.log('Attempting to create profile with data:', profileData)
+
+    const { error: createError } = await adminSupabase
       .from('profiles')
-      .insert({
-        id: userId,
-        email: email!,
-        full_name: fullName,
-        role: isAdmin ? 'Administrator' : role,
-        expertise: expertise,
-        is_admin: isAdmin,
-        avatar_url: userMetadata?.avatar_url,
-        bio: invitedBio || bioFromMetadata || null,
-      })
-      .select()
-      .single()
+      .insert(profileData)
 
     if (createError) {
       console.error('Profile creation error:', createError)
-      return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 })
+      return NextResponse.json({
+        error: 'Failed to create profile',
+        details: createError.message,
+        code: createError.code
+      }, { status: 500 })
     }
 
-    console.log('Profile created via API:', newProfile)
+    console.log('Profile created via API for user:', userId)
     console.log('User metadata at creation:', user.user_metadata)
     console.log('Has invite data:', hasInviteData)
 
     return NextResponse.json({
       success: true,
-      profile: newProfile
+      profile: { id: userId, email, full_name: fullName, role: isAdmin ? 'Administrator' : role }
     })
 
   } catch (error) {

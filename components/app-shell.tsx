@@ -10,7 +10,6 @@ import {
   Users,
   BookOpen,
   KanbanSquare,
-  Trophy,
   CalendarClock,
   LinkIcon,
   MessageSquare,
@@ -24,6 +23,7 @@ import {
   Activity,
   Dumbbell,
   Megaphone,
+  UserCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { AdminUIToggle } from "@/components/admin-ui-toggle";
 import { toast } from "sonner";
+import { getAvatarUrl } from "@/lib/utils";
 // import { RealtimeTimerProvider } from "@/components/tracker/RealtimeTimerProvider";
 import { Card, CardContent } from "@/components/ui/card";
 // import { TimerBadge } from "@/components/tracker/TimerBadge";
@@ -52,23 +53,26 @@ type Profile = {
   is_admin?: boolean;
 };
 
-type NavStatus = "in-progress" | "placeholder";
 type Announcement = { id: string; message: string; created_at: string; user_id?: string | null };
 
-const navItems: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; status?: NavStatus }[] = [
+type NavStatus = "in-progress" | "placeholder";
+
+const navItems: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; status?: NavStatus; adminOnly?: boolean }[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/profile", label: "Profile", icon: UserCircle2 },
-  { href: "/team", label: "Team", icon: Users },
+  { href: "/fitness", label: "Fitness", icon: Activity },
+  { href: "/analytics", label: "Analytics", icon: BarChart4 },
+  { href: "/exercises", label: "Exercises", icon: Dumbbell },
+  { href: "/team", label: "Our Team", icon: Users },
+  { href: "/wins", label: "Trainer Blog", icon: BookOpen },
   { href: "/knowledge", label: "The Brain", icon: BookOpen },
-  { href: "/projects", label: "Projects", icon: KanbanSquare },
-  { href: "/wins", label: "Wins & Blog", icon: Trophy },
-  { href: "/calendar", label: "Calendar", icon: CalendarClock },
   { href: "/quick-links", label: "Quick Links", icon: LinkIcon },
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
+  { href: "/calendar", label: "Calendar", icon: CalendarClock },
   { href: "/booking", label: "Bookings", icon: CalendarDays, status: "placeholder" },
   { href: "/polls", label: "Polls", icon: BarChart4 },
-  { href: "/fitness", label: "Fitness", icon: Activity },
-  { href: "/exercises", label: "Exercises", icon: Dumbbell },
+  { href: "/connections", label: "Connections", icon: KanbanSquare, adminOnly: true },
+  { href: "/fitness-clients", label: "Fitness Clients", icon: UserCheck, adminOnly: true },
 ];
 
 type TourStep = {
@@ -85,7 +89,7 @@ const tourSteps: TourStep[] = [
   {
     id: "tour-announcements",
     title: "Announcements",
-    body: "Ticker for org updates. Use the arrows to skim updates; it’s visible everywhere.",
+    body: "Ticker for org updates. Use the arrows to skim updates; it's visible everywhere.",
     selector: "[data-tour='announcement-bar']",
     href: "/dashboard",
   },
@@ -126,10 +130,10 @@ const tourSteps: TourStep[] = [
   },
   {
     id: "tour-projects",
-    title: "Projects",
-    body: "See which teammates are staffed for each client based on time logs.",
+    title: "Connections",
+    body: "See which trainers have worked with each client based on completed workout sessions.",
     selector: "[data-tour-nav='projects']",
-    href: "/projects",
+    href: "/connections",
   },
   {
     id: "tour-wins",
@@ -187,10 +191,10 @@ export function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
 
   const activeTourStep = isTourActive ? tourSteps[tourIndex] : null;
 
@@ -244,13 +248,12 @@ export function AppShell({ user, children }: AppShellProps) {
         const { data, error } = await supabase
           .from("profiles")
           .select("id, full_name, avatar_url, role, is_admin")
-          .eq("id", user.id)
-          .single();
+          .eq("id", user.id);
 
         if (error) {
           throw error;
         }
-        setProfile(data);
+        setProfile(data && data.length > 0 ? data[0] : null);
       } catch (error) {
         console.error("Failed to load profile", error);
       }
@@ -258,6 +261,16 @@ export function AppShell({ user, children }: AppShellProps) {
 
     loadProfile();
   }, [user.id]);
+
+  const nextAnnouncement = () => {
+    if (announcements.length === 0) return;
+    setAnnouncementIndex((idx) => (idx + 1) % announcements.length);
+  };
+
+  const prevAnnouncement = () => {
+    if (announcements.length === 0) return;
+    setAnnouncementIndex((idx) => (idx - 1 + announcements.length) % announcements.length);
+  };
 
   useEffect(() => {
     const loadAnnouncements = async () => {
@@ -275,16 +288,6 @@ export function AppShell({ user, children }: AppShellProps) {
     }, 18000);
     return () => clearInterval(id);
   }, [announcements]);
-
-  const nextAnnouncement = () => {
-    if (announcements.length === 0) return;
-    setAnnouncementIndex((idx) => (idx + 1) % announcements.length);
-  };
-
-  const prevAnnouncement = () => {
-    if (announcements.length === 0) return;
-    setAnnouncementIndex((idx) => (idx - 1 + announcements.length) % announcements.length);
-  };
 
   useEffect(() => {
     const endTour = () => {
@@ -322,7 +325,9 @@ export function AppShell({ user, children }: AppShellProps) {
 
   const renderNav = () => (
     <nav className="space-y-2">
-      {navItems.map(({ href, label, icon: Icon, status }) => {
+      {navItems
+        .filter(({ adminOnly }) => !adminOnly || profile?.is_admin)
+        .map(({ href, label, icon: Icon, status }) => {
         const active = pathname === href;
         const tourSlug = href.replace("/", "") || "home";
         return (
@@ -374,7 +379,6 @@ export function AppShell({ user, children }: AppShellProps) {
 
   return (
     <div>
-      <div className="min-h-screen bg-background text-foreground" style={{ paddingTop: BANNER_HEIGHT + CONTENT_OFFSET }}>
         <div className="fixed inset-x-0 top-0 z-50" style={{ height: BANNER_HEIGHT }}>
           <Card
             className="h-full rounded-none border-0 bg-card text-primary shadow-md"
@@ -405,6 +409,7 @@ export function AppShell({ user, children }: AppShellProps) {
             </CardContent>
           </Card>
         </div>
+      <div className="min-h-screen bg-background text-foreground" style={{ paddingTop: BANNER_HEIGHT + CONTENT_OFFSET }}>
         <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.08),transparent_32%),radial-gradient(circle_at_80%_0%,hsl(var(--accent)/0.06),transparent_28%),radial-gradient(circle_at_60%_80%,hsl(var(--secondary)/0.05),transparent_35%)]" />
         <div className="relative z-10 mx-auto mt-6 flex max-w-7xl gap-6 px-4 pb-6 lg:mt-8 lg:pl-[320px] lg:pr-8 lg:pb-8">
           <aside className="hidden lg:block">
@@ -417,7 +422,7 @@ export function AppShell({ user, children }: AppShellProps) {
             >
               <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/10 to-accent/10 p-3">
                 <Avatar className="border border-white/20 shadow-md">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarImage src={getAvatarUrl(profile?.full_name, profile?.avatar_url)} />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <div>

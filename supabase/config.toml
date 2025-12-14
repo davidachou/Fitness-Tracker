@@ -3,6 +3,6 @@
 
 [db.seed]
 enabled = true
-sql_paths = ["seeds/seed_time_tracker_projects.sql"]
+sql_paths = ["seeds/complete_app_seed.sql", "seeds/complete_fitness_seed.sql"]
 
 

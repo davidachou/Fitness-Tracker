@@ -19,3 +19,28 @@ export const hasEnvVars =
 export function shouldShowAdminFeatures(isAdmin: boolean, adminUIMode: boolean): boolean {
   return isAdmin && adminUIMode;
 }
+
+/**
+ * Gets avatar URL for a user, prioritizing database avatar_url, then file-based avatars
+ * @param name - The user's full name
+ * @param avatarUrl - The avatar URL from the database (optional)
+ * @returns string - The avatar URL to use
+ */
+export function getAvatarUrl(name: string | null | undefined, avatarUrl?: string | null): string {
+  // Use database avatar if available
+  const dbAvatar = (avatarUrl ?? "").trim();
+  if (dbAvatar) {
+    return dbAvatar;
+  }
+
+  // Try to find file-based avatar if name is provided
+  const cleanName = (name ?? "").trim();
+  if (cleanName) {
+    // Replace spaces with spaces (normalize) and try .png extension
+    const normalizedName = cleanName.replace(/\s+/g, ' ');
+    return `/team/${normalizedName}.png`;
+  }
+
+  // No avatar available
+  return "";
+}

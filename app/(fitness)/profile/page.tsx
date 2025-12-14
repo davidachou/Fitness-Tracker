@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +13,6 @@ type Profile = {
   email: string | null;
   full_name: string | null;
   role: string | null;
-  expertise: string[];
   avatar_url?: string | null;
   bio?: string | null;
 };
@@ -23,7 +20,6 @@ type Profile = {
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [newSkill, setNewSkill] = useState("");
   const [bioDraft, setBioDraft] = useState("");
   const [savingBio, setSavingBio] = useState(false);
 
@@ -47,7 +43,6 @@ export default function ProfilePage() {
           email: data.email,
           full_name: data.full_name,
           role: data.role,
-          expertise: data.expertise || [],
           avatar_url: data.avatar_url,
           bio: data.bio,
         });
@@ -80,30 +75,6 @@ export default function ProfilePage() {
     loadProfile();
   }, []);
 
-  const updateExpertise = async (expertise: string[]) => {
-    if (!profile) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("profiles").update({ expertise }).eq("id", profile.id);
-    if (error) {
-      toast.error("Failed to update expertise");
-      return;
-    }
-    setProfile({ ...profile, expertise });
-    toast.success("Expertise updated");
-  };
-
-  const addSkill = async () => {
-    if (!newSkill.trim()) return;
-    const updated = [...(profile?.expertise || []), newSkill.trim()];
-    await updateExpertise(updated);
-    setNewSkill("");
-  };
-
-  const removeSkill = async (skill: string) => {
-    if (!profile) return;
-    const updated = profile.expertise.filter((s) => s !== skill);
-    await updateExpertise(updated);
-  };
 
   const updateBio = async () => {
     if (!profile) return;
@@ -148,7 +119,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <Card className="border-white/10 bg-white/5 backdrop-blur">
+      <Card className="border-border bg-card backdrop-blur dark:border-white/10 dark:bg-white/5">
         <CardHeader className="flex flex-row items-center gap-4">
           <Avatar className="h-16 w-16 border border-white/20">
             <AvatarImage src={profile.avatar_url || undefined} />
@@ -156,7 +127,7 @@ export default function ProfilePage() {
           </Avatar>
           <div>
             <CardTitle className="text-2xl">{profile.full_name}</CardTitle>
-            <CardDescription className="text-base text-white/70">
+            <CardDescription className="text-base text-muted-foreground">
               {profile.role || "Team Member"}
             </CardDescription>
             <div className="text-sm text-muted-foreground">{profile.email}</div>
@@ -164,21 +135,21 @@ export default function ProfilePage() {
         </CardHeader>
       </Card>
 
-      <Card className="border-white/10 bg-white/5 backdrop-blur">
+      <Card className="border-border bg-card backdrop-blur dark:border-white/10 dark:bg-white/5">
         <CardHeader>
           <CardTitle>Bio</CardTitle>
-          <CardDescription>Shown on the Team tab. Keep it short and clear.</CardDescription>
+          <CardDescription>Tell us about your fitness goals and background.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
-            placeholder="Fitness enthusiast and wellness advocate."
+            placeholder="Tell us about your fitness goals and background."
             value={bioDraft}
             onChange={(e) => setBioDraft(e.target.value)}
-            className="border-white/20 bg-white/10 text-white placeholder:text-white/70"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-white/70"
             rows={4}
           />
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Optional — leave blank to hide.</div>
+            <div className="text-sm text-muted-foreground">Optional information about your fitness journey.</div>
             <Button onClick={updateBio} disabled={savingBio}>
               {savingBio ? "Saving…" : "Save bio"}
             </Button>
@@ -186,39 +157,6 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/5 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Expertise</CardTitle>
-          <CardDescription>Click to remove; add new skills below.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {profile.expertise.length === 0 && (
-              <div className="text-sm text-muted-foreground">No skills yet.</div>
-            )}
-            {profile.expertise.map((skill) => (
-              <Badge
-                key={skill}
-                variant="secondary"
-                className="cursor-pointer bg-primary/10 text-primary"
-                onClick={() => removeSkill(skill)}
-              >
-                {skill} ✕
-              </Badge>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add a skill"
-              value={newSkill}
-              onChange={(e) => setNewSkill(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addSkill()}
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/70"
-            />
-            <Button onClick={addSkill}>Add</Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
       const isAdminAllowList = ADMIN_ALLOW_LIST.includes(email!)
       const isAdmin = isAdminAllowList || requestedAdmin === true
 
+      console.log('Attempting to create profile for invited user:', invitedUserId, 'with admin status:', isAdmin)
+
       const { error: profileInsertError } = await adminSupabase
         .from('profiles')
         .upsert(
@@ -116,12 +118,20 @@ export async function POST(request: NextRequest) {
 
       if (profileInsertError) {
         console.error('Profile insert FAILED after invite:', profileInsertError)
-        // Don't return error - continue and let auth callback handle it
+        console.error('Profile data attempted:', {
+          id: invitedUserId,
+          email,
+          full_name: fullName,
+          role: isAdmin ? 'Administrator' : 'Client',
+          is_admin: isAdmin,
+          bio: bioText || null,
+        })
+        // Don't return error - continue and let dashboard handle profile creation as fallback
       } else {
         console.log('Profile created successfully during invite for user:', invitedUserId)
       }
     } else {
-      console.warn('Invite succeeded but no user id returned; profile will be created on auth callback.')
+      console.warn('Invite succeeded but no user id returned; profile will be created on dashboard load.')
     }
 
     console.log('Invite sent successfully to:', email)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -21,23 +21,22 @@ import {
   CheckCircle,
   Clock,
   Play,
-  Pause,
   ChevronLeft,
-  ChevronRight,
-  X
+  ChevronRight
 } from "lucide-react";
 
 type WorkoutSession = {
   id: string;
-  workout_id: string;
+  template_id: string;
   started_at: string;
   status: string;
-  workouts: {
+  workout_templates: {
     name: string;
-    workout_exercises: Array<{
+    template_exercises: Array<{
       id: string;
       sets: number;
       reps: number;
+      duration_seconds?: number;
       weight?: number;
       rest_seconds: number;
       notes?: string;
@@ -45,18 +44,47 @@ type WorkoutSession = {
         id: string;
         name: string;
         instructions?: string;
+        is_time_based?: boolean;
+      };
+    }>;
+  }[];
+  workouts: {
+    name: string;
+    template_exercises: Array<{
+      id: string;
+      sets: number;
+      reps: number;
+      duration_seconds?: number;
+      weight?: number;
+      rest_seconds: number;
+      notes?: string;
+      exercises: {
+        id: string;
+        name: string;
+        instructions?: string;
+        is_time_based?: boolean;
       };
     }>;
   };
 };
 
 type ExerciseLog = {
-  workout_exercise_id: string;
+  template_exercise_id: string;
+  exercise_id: string;
   sets_completed: number;
   reps_completed: number;
+  time_completed?: number;
   weight_used?: number;
   rest_time_seconds: number;
   notes?: string;
+  // Planned values for historical accuracy
+  planned_sets: number;
+  planned_reps: number;
+  planned_duration_seconds?: number;
+  planned_weight?: number;
+  planned_rest_seconds: number;
+  exercise_name: string;
+  is_time_based?: boolean;
 };
 
 type WorkoutSessionDialogProps = {
@@ -71,47 +99,74 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   const queryClient = useQueryClient();
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>({});
-  const [restTimer, setRestTimer] = useState<{ running: boolean; timeLeft: number; totalTime: number } | null>(null);
+  const [restTimer, setRestTimer] = useState<{ running: boolean; timeLeft: number; totalTime: number; startTime: number } | null>(null);
+  const [exerciseTimer, setExerciseTimer] = useState<{ running: boolean; elapsed: number; startTime: number } | null>(null);
   const [sessionStartTime] = useState(new Date());
+
+  // Reset workout state when starting a new session
+  const prevSessionId = useRef<string | null>(null);
+  useEffect(() => {
+    if (sessionId && open && sessionId !== prevSessionId.current) {
+      // Only reset when starting a new session (different sessionId)
+      setCurrentExerciseIndex(0);
+      setExerciseLogs({});
+      setRestTimer(null);
+      prevSessionId.current = sessionId;
+    }
+  }, [sessionId, open]);
 
   // Get session data
   const sessionQuery = useQuery({
     queryKey: ["workout-session", sessionId],
     enabled: Boolean(sessionId && open),
     queryFn: async () => {
+      // Query session with template data
       const { data, error } = await supabase
-        .from("workout_sessions")
-        .select(`
-          id,
-          workout_id,
-          started_at,
-          status,
-          workouts!inner(
-            name,
-            workout_exercises(
+            .from("workout_sessions")
+            .select(`
               id,
-              sets,
-              reps,
-              weight,
-              rest_seconds,
-              notes,
-              exercises!inner(
-                id,
+              template_id,
+              started_at,
+              status,
+              workout_templates!inner(
                 name,
-                instructions
+                template_exercises(
+                  id,
+                  sets,
+                  reps,
+                  duration_seconds,
+                  weight,
+                  rest_seconds,
+                  notes,
+                  exercises!inner(
+                    id,
+                    name,
+                    instructions,
+                    is_time_based
+                  )
+                )
               )
-            )
-          )
-        `)
-        .eq("id", sessionId)
-        .single();
+            `)
+            .eq("id", sessionId)
+            .single();
 
-      if (error) throw error;
-      return data as unknown as WorkoutSession;
+        if (error) throw error;
+
+      // Transform to match component expectations
+          const template = data.workout_templates?.[0];
+          return {
+            ...data,
+            workouts: {
+              name: template?.name || '',
+              template_exercises: template?.template_exercises || []
+            }
+          } as unknown as WorkoutSession;
+
+      throw new Error("Failed to load session data");
     },
   });
 
-  const exercises = sessionQuery.data?.workouts.workout_exercises || [];
+  const exercises = sessionQuery.data?.workouts.template_exercises || [];
   const currentExercise = exercises[currentExerciseIndex];
   const totalExercises = exercises.length;
   const completedExercises = exercises.filter(ex =>
@@ -122,39 +177,103 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   // Rest timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (restTimer?.running && restTimer.timeLeft > 0) {
+    if (restTimer?.running) {
       interval = setInterval(() => {
         setRestTimer(prev => prev ? {
           ...prev,
           timeLeft: prev.timeLeft - 1
         } : null);
       }, 1000);
-    } else if (restTimer?.timeLeft === 0) {
-      // Timer finished
-      setRestTimer(null);
-      toast.success("Rest time complete!");
     }
     return () => clearInterval(interval);
   }, [restTimer]);
+
+  // Exercise timer effect (for time-based exercises)
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (exerciseTimer?.running) {
+      interval = setInterval(() => {
+        setExerciseTimer(prev => prev ? {
+          ...prev,
+          elapsed: Math.floor((Date.now() - prev.startTime) / 1000)
+        } : null);
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [exerciseTimer]);
 
   const startRestTimer = (seconds: number) => {
     setRestTimer({
       running: true,
       timeLeft: seconds,
-      totalTime: seconds
+      totalTime: seconds,
+      startTime: Date.now()
     });
   };
 
-  const pauseRestTimer = () => {
-    setRestTimer(prev => prev ? { ...prev, running: false } : null);
-  };
-
-  const resumeRestTimer = () => {
-    setRestTimer(prev => prev ? { ...prev, running: true } : null);
-  };
 
   const resetRestTimer = () => {
+    // If there was an active timer, record the actual rest time taken
+    if (restTimer && currentExercise) {
+      const actualRestTime = Math.round((Date.now() - restTimer.startTime) / 1000);
+      updateExerciseLog(currentExercise.id, {
+        rest_time_seconds: actualRestTime
+      });
+
+      // Check if this was the last set of the current exercise
+      const currentLog = exerciseLogs[currentExercise.id];
+      const wasLastSet = currentLog && currentLog.sets_completed >= currentExercise.sets;
+
+      if (wasLastSet && currentExerciseIndex < exercises.length - 1) {
+        // Move to next exercise after rest
+        setTimeout(() => {
+          setCurrentExerciseIndex(prev => prev + 1);
+        }, 500);
+        toast.success(`Rest completed! Moving to next exercise...`);
+      } else {
+        toast.success(`Rest completed! (${formatTime(actualRestTime - restTimer.totalTime)} extra)`);
+      }
+    }
     setRestTimer(null);
+  };
+
+  const startExerciseTimer = () => {
+    if (currentExercise && currentExercise.exercises && currentExercise.exercises.name) {
+      // Initialize the exercise log if it doesn't exist
+      if (!exerciseLogs[currentExercise.id]) {
+        updateExerciseLog(currentExercise.id, {
+          template_exercise_id: currentExercise.id,
+          exercise_id: currentExercise.exercises?.id,
+          sets_completed: 0,
+          reps_completed: currentExercise.exercises?.is_time_based ? undefined : 0,
+          time_completed: currentExercise.exercises?.is_time_based ? (currentExercise.duration_seconds || 30) : undefined,
+          weight_used: currentExercise.weight ? parseFloat(currentExercise.weight.toString()) : undefined,
+          rest_time_seconds: 0,
+          planned_sets: currentExercise.sets || 0,
+          planned_reps: currentExercise.reps || 0,
+          planned_duration_seconds: currentExercise.duration_seconds,
+          planned_weight: currentExercise.weight ? parseFloat(currentExercise.weight.toString()) : undefined,
+          planned_rest_seconds: currentExercise.rest_seconds || 0,
+          exercise_name: currentExercise.exercises?.name,
+          is_time_based: currentExercise.exercises?.is_time_based || false
+        });
+      }
+
+      setExerciseTimer({
+        running: true,
+        elapsed: 0,
+        startTime: Date.now()
+      });
+    }
+  };
+
+  const stopExerciseTimer = () => {
+    if (exerciseTimer) {
+      const actualTime = Math.floor((Date.now() - exerciseTimer.startTime) / 1000);
+      setExerciseTimer(null);
+      return actualTime;
+    }
+    return 0;
   };
 
   const updateExerciseLog = (exerciseId: string, updates: Partial<ExerciseLog>) => {
@@ -162,58 +281,199 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
       ...prev,
       [exerciseId]: {
         ...prev[exerciseId],
-        workout_exercise_id: exerciseId,
+        template_exercise_id: exerciseId,
         ...updates
       }
     }));
   };
 
   const completeSet = () => {
-    if (!currentExercise) return;
+    if (!currentExercise || !currentExercise.exercises || !currentExercise.exercises.name) {
+      console.error('Exercise data not available for completion', currentExercise);
+      toast.error('Exercise data not loaded. Please refresh and try again.');
+      return;
+    }
 
     const currentLog = exerciseLogs[currentExercise.id] || {
-      workout_exercise_id: currentExercise.id,
+      template_exercise_id: currentExercise.id,
+      exercise_id: currentExercise.exercises?.id,
       sets_completed: 0,
-      reps_completed: 0,
-      rest_time_seconds: 0
+      reps_completed: currentExercise.exercises?.is_time_based ? undefined : 0,
+      time_completed: currentExercise.exercises?.is_time_based ? (currentExercise.duration_seconds || 30) : undefined,
+      weight_used: currentExercise.weight ? parseFloat(currentExercise.weight.toString()) : undefined,
+      rest_time_seconds: 0,
+      // Planned values for historical accuracy - ensure they're never null
+      planned_sets: currentExercise.sets || 0,
+      planned_reps: currentExercise.reps || 0,
+      planned_duration_seconds: currentExercise.duration_seconds || null,
+      planned_weight: currentExercise.weight ? parseFloat(currentExercise.weight.toString()) : null,
+      planned_rest_seconds: currentExercise.rest_seconds || 0,
+      exercise_name: currentExercise.exercises?.name || 'Unknown Exercise',
+      is_time_based: currentExercise.exercises?.is_time_based || false
     };
 
+    // Handle time-based exercises differently
+    if (currentExercise.exercises.is_time_based) {
+      // If no timer is running and no time recorded, start the exercise
+      if (!exerciseTimer && !currentLog.time_completed) {
+        startExerciseTimer();
+        return;
+      }
+
+      const newSetsCompleted = currentLog.sets_completed + 1;
+
+      // If timer is running, stop it and complete the set
+      if (exerciseTimer) {
+        const actualTime = stopExerciseTimer();
+
+        updateExerciseLog(currentExercise.id, {
+          sets_completed: newSetsCompleted,
+          time_completed: actualTime,
+          weight_used: currentLog.weight_used || currentExercise.weight,
+          rest_time_seconds: currentExercise.rest_seconds
+        });
+
+        // Always start rest timer after completing a set, unless it's the last set of the last exercise
+        const isLastSetOfWorkout = newSetsCompleted >= currentExercise.sets && currentExerciseIndex >= exercises.length - 1;
+
+        if (!isLastSetOfWorkout) {
+          startRestTimer(currentExercise.rest_seconds);
+        }
+
+        // If this was the last set of the exercise, show completion message
+        if (newSetsCompleted >= currentExercise.sets) {
+          toast.success(`${currentExercise.exercises?.name || 'Exercise'} completed!`);
+        }
+
+        return;
+      }
+
+      // If no timer running but time already recorded, complete the set
+      if (exerciseLogs[currentExercise.id]?.time_completed) {
+        updateExerciseLog(currentExercise.id, {
+          sets_completed: newSetsCompleted,
+          weight_used: currentLog.weight_used || currentExercise.weight,
+          rest_time_seconds: currentExercise.rest_seconds,
+          // Clear time_completed for next set
+          time_completed: undefined
+        });
+
+        // Always start rest timer after completing a set, unless it's the last set of the last exercise
+        const isLastSetOfWorkout = newSetsCompleted >= currentExercise.sets && currentExerciseIndex >= exercises.length - 1;
+
+        if (!isLastSetOfWorkout) {
+          startRestTimer(currentExercise.rest_seconds);
+        }
+
+        // If this was the last set of the exercise, show completion message
+        if (newSetsCompleted >= currentExercise.sets) {
+          toast.success(`${currentExercise.exercises?.name || 'Exercise'} completed!`);
+        }
+
+        return;
+      }
+
+      // If no timer and no recorded time, start the exercise
+      startExerciseTimer();
+      toast.success(`Started ${currentExercise.exercises?.name || 'exercise'}! Timer running...`);
+      return;
+    }
+
+    // Handle rep-based exercises (original logic)
     const newSetsCompleted = currentLog.sets_completed + 1;
+
+    // Calculate actual rest time taken
+    const actualRestTime = restTimer
+      ? Math.round((Date.now() - restTimer.startTime) / 1000)
+      : currentExercise.rest_seconds;
 
     updateExerciseLog(currentExercise.id, {
       sets_completed: newSetsCompleted,
       reps_completed: currentLog.reps_completed || currentExercise.reps,
       weight_used: currentLog.weight_used || currentExercise.weight,
-      rest_time_seconds: currentExercise.rest_seconds
+      rest_time_seconds: actualRestTime
     });
 
-    // Start rest timer if not the last set
-    if (newSetsCompleted < currentExercise.sets) {
+    // Always start rest timer after completing a set, unless it's the last set of the last exercise
+    const isLastSetOfWorkout = newSetsCompleted >= currentExercise.sets && currentExerciseIndex >= exercises.length - 1;
+
+    if (!isLastSetOfWorkout) {
       startRestTimer(currentExercise.rest_seconds);
-    } else {
-      // Exercise completed, move to next
-      toast.success(`${currentExercise.exercises.name} completed!`);
-      if (currentExerciseIndex < exercises.length - 1) {
-        setTimeout(() => {
-          setCurrentExerciseIndex(prev => prev + 1);
-        }, 1000);
-      }
+    }
+
+    // If this was the last set of the exercise, show completion message
+    if (newSetsCompleted >= currentExercise.sets) {
+      toast.success(`${currentExercise.exercises?.name || 'Exercise'} completed!`);
     }
   };
 
   const saveExerciseLogMutation = useMutation({
     mutationFn: async (log: ExerciseLog) => {
+      // Ensure exercise_name is never blank - try to get it from the workout_exercises join
+      let exerciseName = log.exercise_name;
+      if (!exerciseName || exerciseName.trim() === '') {
+        console.warn('Exercise name was blank, fetching from database', {
+          template_exercise_id: log.template_exercise_id,
+          original_name: log.exercise_name
+        });
+
+        // Try to get the exercise name from the database
+        const { data: templateExercise, error } = await supabase
+          .from('template_exercises')
+          .select('exercises(name)')
+          .eq('id', log.template_exercise_id)
+          .single();
+
+        if (error) {
+          console.error('Failed to fetch exercise name from database', error);
+          exerciseName = 'Unknown Exercise';
+        } else {
+          exerciseName = templateExercise?.exercises?.[0]?.name || 'Unknown Exercise';
+          console.log('Successfully fetched exercise name from database', exerciseName);
+        }
+      }
+
+      // Get exercise_id from the current exercise data if not in log
+      let exerciseId: string | undefined = log.exercise_id;
+      if (!exerciseId && log.template_exercise_id) {
+        // Find the exercise in the current session data
+        const currentExercise = exercises.find(ex => ex.id === log.template_exercise_id);
+        exerciseId = currentExercise?.exercises?.id;
+        console.log('Resolved exercise_id:', exerciseId, 'from template_exercise_id:', log.template_exercise_id);
+      }
+
+      // Ensure weight is a number
+      const weightUsed = log.weight_used !== undefined ? Number(log.weight_used) : null;
+
+      const insertData = {
+        session_id: sessionId,
+        template_exercise_id: log.template_exercise_id,
+        exercise_id: exerciseId,
+        sets_completed: log.sets_completed,
+        reps_completed: log.reps_completed,
+        time_completed: log.time_completed,
+        weight_used: weightUsed,
+        rest_time_seconds: log.rest_time_seconds,
+        notes: log.notes,
+        // Planned values for historical accuracy - ensure NOT NULL fields have values
+        planned_sets: log.planned_sets || 0,
+        planned_reps: log.planned_reps || 0,
+        planned_duration_seconds: log.planned_duration_seconds,
+        planned_weight: log.planned_weight ? Number(log.planned_weight) : null,
+        planned_rest_seconds: log.planned_rest_seconds || 0,
+        exercise_name: exerciseName
+      };
+
+
+      console.log('Final insertData:', JSON.stringify(insertData, null, 2));
+
       const { error } = await supabase
         .from("exercise_logs")
-        .insert({
-          session_id: sessionId,
-          workout_exercise_id: log.workout_exercise_id,
-          sets_completed: log.sets_completed,
-          reps_completed: log.reps_completed,
-          weight_used: log.weight_used,
-          rest_time_seconds: log.rest_time_seconds,
-          notes: log.notes
-        });
+        .insert(insertData);
+
+      if (error) {
+        console.error('Exercise log insert error:', error);
+      }
 
       if (error) throw error;
     },
@@ -250,7 +510,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
     onSuccess: () => {
       toast.success("Workout completed! Great job! 🎉");
       queryClient.invalidateQueries({ queryKey: ["workout-history"] });
-      queryClient.invalidateQueries({ queryKey: ["active-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["active-session-for-workout"] });
       onClose();
     },
     onError: () => {
@@ -263,13 +523,26 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const absSeconds = Math.abs(seconds);
+    const mins = Math.floor(absSeconds / 60);
+    const secs = absSeconds % 60;
+    const sign = seconds < 0 ? '+' : '';
+    return `${sign}${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!sessionQuery.data) {
-    return null;
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Loading Workout</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <p>Loading workout session...</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
@@ -297,29 +570,79 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
 
           {/* Rest Timer */}
           {restTimer && (
-            <Card className="border-orange-200 bg-orange-50">
+            <Card className={`border-2 border-orange-400/50 bg-gradient-to-r from-orange-50 to-orange-100/50 dark:from-orange-950/50 dark:to-orange-900/30 shadow-lg ${restTimer.running ? 'animate-pulse' : ''}`}>
+              <CardContent className="pt-6 pb-6">
+                <div className="text-center space-y-4">
+                  <div className={`p-3 rounded-full ${restTimer.running ? 'bg-orange-500/20 animate-pulse' : 'bg-orange-500/10'} mx-auto w-fit`}>
+                    <Clock className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-orange-900 dark:text-orange-100">
+                      Rest Period
+                    </h3>
+                    <p className="text-sm text-orange-700 dark:text-orange-300">
+                      Take your break • Recover for next set
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-8">
+                    <div className="text-center">
+                      <div className={`text-4xl font-mono font-black mb-1 ${restTimer.timeLeft <= 0 ? 'text-red-600 dark:text-red-400' : 'text-orange-900 dark:text-orange-100'}`}>
+                        {formatTime(restTimer.timeLeft)}
+                      </div>
+                      <div className="text-sm text-orange-700 dark:text-orange-300">
+                        of {formatTime(restTimer.totalTime)} planned
+                        {restTimer.timeLeft <= 0 && (
+                          <span className="text-red-600 dark:text-red-400 font-medium block">Overtime!</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <Button size="lg" onClick={resetRestTimer} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3">
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        End Rest
+                      </Button>
+                      <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                        Ready for next set?
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Exercise Timer (for time-based exercises) */}
+          {exerciseTimer && currentExercise?.exercises.is_time_based && (
+            <Card className="border-blue-200/50 bg-blue-50/30 dark:border-blue-600/20 dark:bg-blue-900/10">
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-orange-600" />
-                    <span className="font-medium">Rest Time</span>
+                    <Play className="h-5 w-5" />
+                    <span className="font-medium">Exercise Timer</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-mono">
-                      {formatTime(restTimer.timeLeft)}
-                    </span>
+                    <div className="text-center">
+                      <span className="text-3xl font-mono font-black text-cyan-600 dark:text-cyan-400">
+                        {formatTime(exerciseTimer.elapsed)}
+                      </span>
+                      <div className="text-xs text-muted-foreground">
+                        target: {formatTime(currentExercise.duration_seconds || 30)}
+                      </div>
+                    </div>
                     <div className="flex gap-1">
-                      {restTimer.running ? (
-                        <Button size="sm" variant="outline" onClick={pauseRestTimer}>
-                          <Pause className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={resumeRestTimer}>
-                          <Play className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={resetRestTimer}>
-                        <X className="h-4 w-4" />
+                      <Button size="sm" variant="outline" onClick={() => {
+                        if (exerciseTimer && currentExercise) {
+                          const actualTime = Math.floor((Date.now() - exerciseTimer.startTime) / 1000);
+                          updateExerciseLog(currentExercise.id, {
+                            time_completed: actualTime
+                          });
+                          setExerciseTimer(null);
+                          toast.success(`Recorded ${formatTime(actualTime)} for ${currentExercise.exercises.name}`);
+                        }
+                      }}>
+                        Stop & Record
                       </Button>
                     </div>
                   </div>
@@ -328,6 +651,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
             </Card>
           )}
 
+
           {/* Current Exercise */}
           {currentExercise && (
             <Card className="border-primary/20">
@@ -335,73 +659,135 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                 <CardTitle className="flex items-center gap-2">
                   Exercise {currentExerciseIndex + 1} of {totalExercises}
                   <Badge variant="secondary">
-                    {currentExercise.exercises.name}
+                    {currentExercise?.exercises?.name || 'Unknown Exercise'}
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Exercise Details */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">
-                      {exerciseLogs[currentExercise.id]?.sets_completed || 0}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Sets Completed</div>
-                    <div className="text-xs">of {currentExercise.sets}</div>
+              <CardContent className="space-y-6">
+                {/* Planned Exercise Details */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-400"></div>
+                    <h4 className="text-sm font-semibold uppercase tracking-wide">
+                      Planned Workout
+                    </h4>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">
-                      {exerciseLogs[currentExercise.id]?.reps_completed || currentExercise.reps}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-blue-50/30 dark:bg-blue-950/10 rounded-lg border border-blue-200/30 dark:border-blue-800/20">
+                    <div className="text-center">
+                      <div className="text-3xl font-black text-cyan-600 dark:text-cyan-400">
+                        {exerciseLogs[currentExercise.id]?.sets_completed || 0}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Sets Completed</div>
+                      <div className="text-xs text-muted-foreground">of {currentExercise.sets} planned</div>
                     </div>
-                    <div className="text-sm text-muted-foreground">Reps</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">
-                      {exerciseLogs[currentExercise.id]?.weight_used || currentExercise.weight || 0}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">
+                        {currentExercise.exercises.is_time_based ? (currentExercise.duration_seconds || 30) : currentExercise.reps}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {currentExercise.exercises.is_time_based ? "Target Duration (sec)" : "Target Reps"}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">Weight (lbs)</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {currentExercise.rest_seconds}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">
+                        {currentExercise.weight || 0}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Target Weight (lbs)</div>
                     </div>
-                    <div className="text-sm text-muted-foreground">Rest (sec)</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">
+                        {currentExercise.rest_seconds}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Rest Period (sec)</div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Input Controls */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Reps</Label>
-                    <Input
-                      type="number"
-                      value={exerciseLogs[currentExercise.id]?.reps_completed || currentExercise.reps}
-                      onChange={(e) => updateExerciseLog(currentExercise.id, {
-                        reps_completed: parseInt(e.target.value) || 0
-                      })}
-                    />
+                {/* Actual Performance Tracking */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-400"></div>
+                    <h4 className="text-sm font-semibold uppercase tracking-wide">
+                      Track Your Performance
+                    </h4>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Weight (lbs)</Label>
-                    <Input
-                      type="number"
-                      step="0.5"
-                      value={exerciseLogs[currentExercise.id]?.weight_used || currentExercise.weight || ""}
-                      onChange={(e) => updateExerciseLog(currentExercise.id, {
-                        weight_used: parseFloat(e.target.value) || undefined
-                      })}
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Input
-                      value={exerciseLogs[currentExercise.id]?.notes || ""}
-                      onChange={(e) => updateExerciseLog(currentExercise.id, {
-                        notes: e.target.value
-                      })}
-                      placeholder="Optional notes"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50/30 dark:bg-green-950/10 rounded-lg border border-green-200/30 dark:border-green-800/20">
+                    <div className="space-y-2">
+                      <Label className="font-medium">
+                        {currentExercise.exercises.is_time_based ? "Actual Time (sec)" : "Actual Reps"}
+                      </Label>
+                      {currentExercise.exercises.is_time_based ? (
+                        // For time-based exercises, show the recorded time (read-only)
+                        <div className="flex items-center justify-center h-10 px-3 border border-green-200 dark:border-green-700 rounded-md bg-muted/30">
+                          <span className="text-lg font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                            {exerciseLogs[currentExercise.id]?.time_completed ?
+                              `${exerciseLogs[currentExercise.id].time_completed}s` :
+                              "Not recorded yet"
+                            }
+                          </span>
+                        </div>
+                      ) : (
+                        // For rep-based exercises, allow manual entry
+                        <Input
+                          type="number"
+                          className="border-green-200 dark:border-green-700 focus:border-green-400"
+                          value={exerciseLogs[currentExercise.id]?.reps_completed || currentExercise.reps}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            updateExerciseLog(currentExercise.id, {
+                              reps_completed: value
+                            });
+                          }}
+                        />
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Planned: {
+                          currentExercise.exercises.is_time_based
+                            ? `${currentExercise.duration_seconds || 30} sec`
+                            : `${currentExercise.reps} reps`
+                        }
+                        {!currentExercise.exercises.is_time_based && (exerciseLogs[currentExercise.id]?.reps_completed || currentExercise.reps) !== currentExercise.reps && (
+                          <span className="text-muted-foreground ml-1">• Modified</span>
+                        )}
+                      </p>
+                    </div>
+                    {currentExercise.exercises.is_time_based && (
+                      <div className="col-span-full text-center">
+                        <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                          💡 Time is automatically recorded when you complete the set above
+                        </p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label className="font-medium">Actual Weight (lbs)</Label>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        className="border-green-200 dark:border-green-700 focus:border-green-400"
+                        value={exerciseLogs[currentExercise.id]?.weight_used || currentExercise.weight || ""}
+                        onChange={(e) => updateExerciseLog(currentExercise.id, {
+                          weight_used: parseFloat(e.target.value) || undefined
+                        })}
+                        placeholder="Optional"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Planned: {currentExercise.weight || 0} lbs
+                        {(exerciseLogs[currentExercise.id]?.weight_used || currentExercise.weight || 0) !== (currentExercise.weight || 0) && (
+                          <span className="text-muted-foreground ml-1">• Modified</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-medium">Performance Notes</Label>
+                      <Input
+                        className="border-green-200 dark:border-green-700 focus:border-green-400"
+                        value={exerciseLogs[currentExercise.id]?.notes || ""}
+                        onChange={(e) => updateExerciseLog(currentExercise.id, {
+                          notes: e.target.value
+                        })}
+                        placeholder="How did it feel?"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -409,11 +795,20 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                 <div className="flex gap-2">
                   <Button
                     onClick={completeSet}
-                    disabled={(exerciseLogs[currentExercise.id]?.sets_completed || 0) >= currentExercise.sets}
-                    className="flex-1"
+                    disabled={
+                      Boolean(
+                        (exerciseLogs[currentExercise.id]?.sets_completed || 0) >= currentExercise.sets ||
+                        restTimer !== null ||
+                        ((currentExercise.exercises?.is_time_based ?? false) && exerciseTimer && !exerciseLogs[currentExercise.id]?.time_completed)
+                      )
+                    }
+                    className={`flex-1 ${restTimer ? 'opacity-50' : ''}`}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Complete Set
+                    {currentExercise.exercises.is_time_based
+                      ? ((exerciseTimer || exerciseLogs[currentExercise.id]?.time_completed) ? "Complete Set" : "Start Exercise")
+                      : "Complete Set"
+                    }
                   </Button>
                 </div>
 
@@ -447,7 +842,7 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
                     index === currentExerciseIndex
                       ? 'bg-primary'
                       : index < currentExerciseIndex
-                      ? 'bg-green-500'
+                      ? 'bg-green-400'
                       : 'bg-muted'
                   }`}
                 />
@@ -465,14 +860,11 @@ export function WorkoutSessionDialog({ sessionId, open, onClose }: WorkoutSessio
           </div>
         </div>
 
-        <div className="flex gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
-            Pause & Exit
-          </Button>
+        <div className="flex pt-4 border-t">
           <Button
             onClick={handleCompleteWorkout}
             disabled={completeWorkoutMutation.isPending}
-            className="flex-1"
+            className="w-full"
           >
             {completeWorkoutMutation.isPending ? "Saving..." : "Complete Workout"}
           </Button>

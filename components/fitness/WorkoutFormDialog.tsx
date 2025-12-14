@@ -28,12 +28,14 @@ type Exercise = {
   category: string;
   muscle_groups: string[];
   difficulty: string;
+  is_time_based: boolean;
 };
 
 type WorkoutExercise = {
   exercise_id: string;
   sets: number;
   reps: number;
+  duration_seconds?: number;
   weight?: number;
   rest_seconds: number;
   notes?: string;
@@ -43,6 +45,7 @@ type WorkoutExerciseFromDB = {
   exercise_id: string;
   sets: number;
   reps: number;
+  duration_seconds: number | null;
   weight: number | null;
   rest_seconds: number;
   notes: string | null;
@@ -74,33 +77,20 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
     exercises: [],
   });
 
-  // Get fitness clients
+  // Get fitness clients (only active enrolled clients can have workouts)
   const clientsQuery = useQuery({
     queryKey: ["fitness-clients"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fitness_clients")
         .select("id, name, email")
+        .eq("is_active", true)
         .order("name");
       if (error) throw error;
       return data;
     },
   });
 
-  // Get profiles for name lookup
-  const profilesQuery = useQuery({
-    queryKey: ["profiles-lookup"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("email, full_name");
-      if (error) throw error;
-      return data.reduce((acc, profile) => {
-        acc[profile.email] = profile.full_name;
-        return acc;
-      }, {} as Record<string, string | null>);
-    },
-  });
 
   // Get all exercises
   const exercisesQuery = useQuery({
@@ -108,7 +98,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
     queryFn: async () => {
       const { data, error } = await supabase
         .from("exercises")
-        .select("id, name, category, muscle_groups, difficulty")
+        .select("id, name, category, muscle_groups, difficulty, is_time_based")
         .order("name");
       if (error) throw error;
       return data as Exercise[];
@@ -118,17 +108,18 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
   const loadWorkoutData = useCallback(async () => {
     if (!workoutId) return;
 
-    const { data: workout, error: workoutError } = await supabase
-      .from("workouts")
+    const { data: template, error: templateError } = await supabase
+      .from("workout_templates")
       .select(`
         id,
         client_id,
         name,
         description,
-        workout_exercises(
+        template_exercises(
           exercise_id,
           sets,
           reps,
+          duration_seconds,
           weight,
           rest_seconds,
           notes
@@ -137,19 +128,21 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
       .eq("id", workoutId)
       .single();
 
-    if (workoutError) {
+    if (templateError) {
       toast.error("Failed to load workout");
+      console.error("Error loading workout:", templateError);
       return;
     }
 
     setFormData({
-      client_id: workout.client_id,
-      name: workout.name,
-      description: workout.description || "",
-      exercises: workout.workout_exercises.map((ex: WorkoutExerciseFromDB) => ({
+      client_id: template.client_id,
+      name: template.name,
+      description: template.description || "",
+      exercises: template.template_exercises.map((ex: WorkoutExerciseFromDB) => ({
         exercise_id: ex.exercise_id,
         sets: ex.sets,
         reps: ex.reps,
+        duration_seconds: ex.duration_seconds || undefined,
         weight: ex.weight || undefined,
         rest_seconds: ex.rest_seconds,
         notes: ex.notes || undefined,
@@ -174,9 +167,9 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
 
   const createWorkoutMutation = useMutation({
     mutationFn: async (data: WorkoutFormData) => {
-      // Create workout
-      const { data: workout, error: workoutError } = await supabase
-        .from("workouts")
+      // Create workout template
+      const { data: template, error: templateError } = await supabase
+        .from("workout_templates")
         .insert({
           client_id: data.client_id,
           name: data.name,
@@ -185,15 +178,16 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
         .select("id")
         .single();
 
-      if (workoutError) throw workoutError;
+      if (templateError) throw templateError;
 
-      // Add exercises
+      // Add exercises to template
       if (data.exercises.length > 0) {
         const exerciseData = data.exercises.map((ex, index) => ({
-          workout_id: workout.id,
+          template_id: template.id,
           exercise_id: ex.exercise_id,
           sets: ex.sets,
           reps: ex.reps,
+          duration_seconds: ex.duration_seconds || null,
           weight: ex.weight || null,
           rest_seconds: ex.rest_seconds,
           notes: ex.notes || null,
@@ -201,17 +195,17 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
         }));
 
         const { error: exercisesError } = await supabase
-          .from("workout_exercises")
+          .from("template_exercises")
           .insert(exerciseData);
 
         if (exercisesError) throw exercisesError;
       }
 
-      return workout;
+      return template;
     },
     onSuccess: () => {
       toast.success("Workout created successfully!");
-      queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["workouts", defaultClientId] });
       onClose();
     },
     onError: (error: Error) => {
@@ -223,49 +217,84 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
     mutationFn: async (data: WorkoutFormData) => {
       if (!workoutId) throw new Error("No workout ID provided");
 
-      // Update workout
-      const { error: workoutError } = await supabase
-        .from("workouts")
+      // Update workout template
+      const { error: templateError } = await supabase
+        .from("workout_templates")
         .update({
           client_id: data.client_id,
           name: data.name,
           description: data.description || null,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", workoutId);
 
-      if (workoutError) throw workoutError;
+      if (templateError) throw templateError;
 
-      // Delete existing exercises and recreate them
-      const { error: deleteError } = await supabase
-        .from("workout_exercises")
-        .delete()
-        .eq("workout_id", workoutId);
+      // Get existing template exercises to compare
+      const { data: existingExercises, error: fetchError } = await supabase
+        .from("template_exercises")
+        .select("id, exercise_id, sets, reps, duration_seconds, weight, rest_seconds, notes, sort_order")
+        .eq("template_id", workoutId)
+        .order("sort_order");
 
-      if (deleteError) throw deleteError;
+      if (fetchError) throw fetchError;
 
-      // Add new exercises
-      if (data.exercises.length > 0) {
-        const exerciseData = data.exercises.map((ex, index) => ({
-          workout_id: workoutId,
+      // Update existing exercises - we can safely update them even if they have logs
+      // The logs remain valid and reference the exercise data correctly
+      const updatePromises = existingExercises?.map(async (existing, index) => {
+        const newExercise = data.exercises[index];
+        if (!newExercise) return; // This exercise is being removed
+
+        return await supabase
+          .from("template_exercises")
+          .update({
+            exercise_id: newExercise.exercise_id,
+            sets: newExercise.sets,
+            reps: newExercise.reps,
+            duration_seconds: newExercise.duration_seconds || null,
+            weight: newExercise.weight || null,
+            rest_seconds: newExercise.rest_seconds,
+            notes: newExercise.notes || null,
+            sort_order: index,
+          })
+          .eq("id", existing.id);
+      }) || [];
+
+      // Add new exercises (beyond the existing ones)
+      const newExercises = data.exercises.slice(existingExercises?.length || 0);
+      if (newExercises.length > 0) {
+        const exerciseData = newExercises.map((ex, index) => ({
+          template_id: workoutId,
           exercise_id: ex.exercise_id,
           sets: ex.sets,
           reps: ex.reps,
+          duration_seconds: ex.duration_seconds || null,
           weight: ex.weight || null,
           rest_seconds: ex.rest_seconds,
           notes: ex.notes || null,
-          sort_order: index,
+          sort_order: (existingExercises?.length || 0) + index,
         }));
 
-        const { error: exercisesError } = await supabase
-          .from("workout_exercises")
-          .insert(exerciseData);
+        updatePromises.push(
+          (async () => {
+            return await supabase.from("template_exercises").insert(exerciseData);
+          })()
+        );
+      }
 
-        if (exercisesError) throw exercisesError;
+      // Execute all updates
+      const results = await Promise.all(updatePromises);
+      const errors = results.filter((result): result is NonNullable<typeof result> & { error: NonNullable<typeof result>['error'] } =>
+        result != null && result.error != null
+      );
+      if (errors.length > 0) {
+        console.error("Update errors:", errors);
+        throw errors[0].error;
       }
     },
     onSuccess: () => {
       toast.success("Workout updated successfully!");
-      queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["workouts", defaultClientId] });
       onClose();
     },
     onError: (error: Error) => {
@@ -302,6 +331,10 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
         i === index ? { ...ex, [field]: value } : ex
       )
     }));
+  };
+
+  const getSelectedExercise = (exerciseId: string): Exercise | undefined => {
+    return exercisesQuery.data?.find(ex => ex.id === exerciseId);
   };
 
   const handleSubmit = () => {
@@ -349,7 +382,7 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
                 <SelectContent>
                   {clientsQuery.data?.map(client => (
                     <SelectItem key={client.id} value={client.id}>
-                      {profilesQuery.data?.[client.email] || client.name}
+                      {client.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -452,12 +485,21 @@ export function WorkoutFormDialog({ open, onClose, workoutId, defaultClientId }:
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Reps</Label>
+                          <Label>
+                            {getSelectedExercise(exercise.exercise_id)?.is_time_based ? "Duration (sec)" : "Reps"}
+                          </Label>
                           <Input
                             type="number"
                             min="1"
-                            value={exercise.reps}
-                            onChange={(e) => updateExercise(index, "reps", parseInt(e.target.value) || 1)}
+                            value={getSelectedExercise(exercise.exercise_id)?.is_time_based ? (exercise.duration_seconds || 30) : exercise.reps}
+                            onChange={(e) => {
+                              const selectedExercise = getSelectedExercise(exercise.exercise_id);
+                              if (selectedExercise?.is_time_based) {
+                                updateExercise(index, "duration_seconds", parseInt(e.target.value) || 30);
+                              } else {
+                                updateExercise(index, "reps", parseInt(e.target.value) || 1);
+                              }
+                            }}
                           />
                         </div>
                         <div className="space-y-2">
